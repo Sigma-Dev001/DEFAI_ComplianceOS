@@ -1,0 +1,16 @@
+{
+  "model": "claude-opus-4-7",
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write(*.py)",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python -m black \"$file\" 2>/dev/null || true"
+          }
+        ]
+      }
+    ]
+  }
+}

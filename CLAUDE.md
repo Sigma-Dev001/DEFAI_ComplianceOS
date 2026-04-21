@@ -1,13 +1,10 @@
 # DEFAI_ComplianceOS
-
 ## What this is
 A compliance middleware REST API. Fintechs call POST /check before settling
 a transaction. Claude reasons against embedded regulatory documents and returns
 PASS, FLAG, or BLOCK with structured JSON and a full audit trail.
-
 ## Model
 claude-opus-4-7 — always use this, never change it
-
 ## Stack
 - Python 3.12
 - FastAPI (fully async)
@@ -17,15 +14,12 @@ claude-opus-4-7 — always use this, never change it
 - sentence-transformers (local embeddings, no external embedding API)
 - python-telegram-bot v21
 - Docker Compose
-
 ## Database
 postgresql://epoch_user:devpassword@localhost:5432/complianceos_db
-
 ## Decision logic
 - Score 0-39   → PASS
 - Score 40-65  → FLAG, recommended_action: "human review"
 - Score 66-100 → BLOCK
-
 ## Response contract (every /check response must match this exactly)
 {
   "decision": "PASS|FLAG|BLOCK",
@@ -37,7 +31,6 @@ postgresql://epoch_user:devpassword@localhost:5432/complianceos_db
   "trace_id": "matches input transaction_id",
   "processing_ms": integer
 }
-
 ## Key constraints
 - Never hardcode API keys — always os.getenv()
 - Every decision must be logged with full Claude reasoning chain to DB
@@ -45,13 +38,15 @@ postgresql://epoch_user:devpassword@localhost:5432/complianceos_db
 - Parameterized queries only — never f-string SQL
 - pgvector handles vector search — no ChromaDB
 - One file per concern — do not merge modules
-
-## Build order
-1. Docker + DB + pgvector
-2. PDF ingestion + embedding
-3. Claude reasoning engine
-4. Decision parser
-5. FastAPI routes
-6. Audit log
-7. Telegram alerts
-8. Demo scenarios passing
+## Build order — EXACT FILE SEQUENCE, DO NOT SKIP OR REORDER
+- Step 1: db/models.py ✅ COMPLETE
+- Step 2: db/session.py ✅ COMPLETE
+- Step 3: ingest/loader.py ✅ COMPLETE
+- Step 4: engine/retrieval.py ✅ COMPLETE
+- Step 5: engine/claude.py ← CURRENT TASK
+- Step 6: engine/decision.py
+- Step 7: api/routes.py
+- Step 8: main.py
+- Step 9: alerts/telegram.py
+- Step 10: tests/scenarios.py
+## Rule: never work on a step until all previous steps are marked COMPLETE

@@ -5,7 +5,12 @@ CONFIDENCE_RE = re.compile(r"CONFIDENCE:\s*(low|medium|high)", re.IGNORECASE)
 REASON_RE = re.compile(
     r"REASON:\s*(.+?)(?=\n\s*RULES:|\Z)", re.IGNORECASE | re.DOTALL
 )
-RULES_RE = re.compile(r"RULES:\s*(.+?)\Z", re.IGNORECASE | re.DOTALL)
+RULES_RE = re.compile(
+    r"RULES:\s*(.+?)(?=\n\s*\n|\n\s*(?:SCORE|CONFIDENCE|REASON|DECISION):|\Z)",
+    re.IGNORECASE | re.DOTALL,
+)
+
+_RULE_META_MARKERS = ("Decision:", "SCORE:", "CONFIDENCE:", "REASON:")
 
 SANCTIONED_COUNTRIES = {"IR", "KP", "SY", "CU", "SD", "MM", "BY"}
 
@@ -32,11 +37,15 @@ def _parse_rules(raw_rules: str) -> list[str]:
     stripped = raw_rules.strip()
     if stripped.lower() in {"none", "n/a", "-"}:
         return []
-    return [
-        part.strip()
-        for part in stripped.split(",")
-        if part.strip() and part.strip().lower() != "none"
-    ]
+    cleaned: list[str] = []
+    for part in stripped.split(","):
+        piece = part.strip()
+        if not piece or piece.lower() == "none":
+            continue
+        if any(marker in piece for marker in _RULE_META_MARKERS):
+            continue
+        cleaned.append(piece)
+    return cleaned
 
 
 def _parse_failure(transaction_id: str, processing_ms: int) -> dict:

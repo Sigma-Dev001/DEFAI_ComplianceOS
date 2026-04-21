@@ -7,6 +7,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, model_validator
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from alerts.telegram import send_alert
 from db.models import Transaction
 from db.session import get_db
 from engine.claude import call_claude
@@ -89,6 +90,16 @@ async def check_transaction(
             )
 
         response["processing_ms"] = int((time.monotonic() - start) * 1000)
+
+        if response["decision"] in ("FLAG", "BLOCK"):
+            await send_alert(
+                decision=response["decision"],
+                score=response["score"],
+                reason=response["reason"],
+                trace_id=response["trace_id"],
+                rule_references=response["rule_references"],
+            )
+
         return response
 
     except Exception:

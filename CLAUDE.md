@@ -46,7 +46,7 @@ postgresql://epoch_user:devpassword@localhost:5432/complianceos_db
 - Step 5: engine/claude.py ✅ COMPLETE
 - Step 6: engine/decision.py ✅ COMPLETE
 - Step 7: api/routes.py ← CURRENT TASK
-- Step 8: main.py
-- Step 9: alerts/telegram.py
+- Step 8: main.py ✅ COMPLETE
+- Step 9: alerts/telegram.py ← CURRENT TASK
 - Step 10: tests/scenarios.py
 ## Rule: never work on a step until all previous steps are marked COMPLETE

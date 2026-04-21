@@ -5,6 +5,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, model_validator
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from alerts.telegram import send_alert
@@ -109,3 +110,36 @@ async def check_transaction(
             status_code=503,
             content={"error": "Service temporarily unavailable"},
         )
+
+
+@router.get("/trace/{transaction_id}")
+async def get_trace(
+    transaction_id: str,
+    db: AsyncSession = Depends(get_db),
+):
+    stmt = (
+        select(Transaction)
+        .where(Transaction.transaction_id == transaction_id)
+        .order_by(Transaction.created_at.desc())
+        .limit(1)
+    )
+    result = await db.execute(stmt)
+    row = result.scalar_one_or_none()
+
+    if row is None:
+        return JSONResponse(status_code=404, content={"error": "not found"})
+
+    return {
+        "id": str(row.id),
+        "transaction_id": row.transaction_id,
+        "request_payload": row.request_payload,
+        "claude_raw_output": row.claude_raw_output,
+        "decision": row.decision,
+        "score": row.score,
+        "confidence": row.confidence,
+        "reason": row.reason,
+        "rule_references": list(row.rule_references) if row.rule_references else [],
+        "recommended_action": row.recommended_action,
+        "processing_ms": row.processing_ms,
+        "created_at": row.created_at.isoformat() if row.created_at else None,
+    }

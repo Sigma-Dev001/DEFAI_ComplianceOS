@@ -6,9 +6,47 @@ from telegram import Bot
 logger = logging.getLogger(__name__)
 
 
+def _format_message(
+    decision: str,
+    score: int,
+    confidence: str,
+    reason: str,
+    trace_id: str,
+    rule_references: list[str],
+) -> str:
+    if rule_references:
+        rules_block = "\n".join(f"• {rule}" for rule in rule_references)
+    else:
+        rules_block = "• none"
+
+    if decision == "FLAG":
+        header = "⚠️ COMPLIANCE ALERT — FLAG"
+        decision_line = "⚖️ Decision: Hold for manual review"
+        why_line = "🔍 Why flagged:"
+    else:
+        header = "🚨 COMPLIANCE ALERT — BLOCK"
+        decision_line = "⛔ Decision: Block transaction immediately"
+        why_line = "🔍 Why blocked:"
+
+    return (
+        f"{header}\n"
+        "\n"
+        f"📋 Transaction: {trace_id}\n"
+        f"📊 Risk Score: {score}/100  ({confidence} confidence)\n"
+        f"{decision_line}\n"
+        "\n"
+        f"{why_line}\n"
+        f"{reason}\n"
+        "\n"
+        "📜 Regulations triggered:\n"
+        f"{rules_block}"
+    )
+
+
 async def send_alert(
     decision: str,
     score: int,
+    confidence: str,
     reason: str,
     trace_id: str,
     rule_references: list[str],
@@ -25,14 +63,13 @@ async def send_alert(
         )
         return
 
-    rules_joined = ", ".join(rule_references) if rule_references else "none"
-    message = (
-        "🚨 COMPLIANCE ALERT 🚨\n"
-        f"Decision: {decision}\n"
-        f"Score: {score}/100\n"
-        f"Transaction: {trace_id}\n"
-        f"Rules: {rules_joined}\n"
-        f"Reason: {reason}"
+    message = _format_message(
+        decision=decision,
+        score=score,
+        confidence=confidence,
+        reason=reason,
+        trace_id=trace_id,
+        rule_references=rule_references,
     )
 
     try:

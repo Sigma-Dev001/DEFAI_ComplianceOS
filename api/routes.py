@@ -97,6 +97,7 @@ async def check_transaction(
             await send_alert(
                 decision=response["decision"],
                 score=response["score"],
+                confidence=response["confidence"],
                 reason=response["reason"],
                 trace_id=response["trace_id"],
                 rule_references=response["rule_references"],

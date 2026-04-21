@@ -1,0 +1,12 @@
+fastapi==0.136.0
+uvicorn==0.44.0
+sqlalchemy==2.0.49
+asyncpg==0.31.0
+pgvector==0.4.2
+anthropic==0.96.0
+python-telegram-bot==22.7
+pydantic==2.13.3
+python-dotenv==1.2.2
+pypdf2==3.0.1
+sentence-transformers==5.4.1
+httpx==0.28.1

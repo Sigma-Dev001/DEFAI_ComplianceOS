@@ -82,13 +82,16 @@ def parse_claude_output(
     decision = _score_to_decision(score)
 
     if decision == "BLOCK" and score < 85:
-        sender = transaction.get("sender_country")
-        receiver = transaction.get("receiver_country")
+        sender_country = transaction.get("sender_country")
+        receiver_country = transaction.get("receiver_country")
+        is_sanctioned = (
+            sender_country in SANCTIONED_COUNTRIES
+            or receiver_country in SANCTIONED_COUNTRIES
+        )
         if (
-            sender is not None
-            and receiver is not None
-            and sender not in SANCTIONED_COUNTRIES
-            and receiver not in SANCTIONED_COUNTRIES
+            sender_country is not None
+            and receiver_country is not None
+            and not is_sanctioned
         ):
             decision = "FLAG"
 

@@ -1,0 +1,99 @@
+import logging
+import time
+from typing import Optional
+
+from fastapi import APIRouter, Depends
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel, ConfigDict, model_validator
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from db.models import Transaction
+from db.session import get_db
+from engine.claude import call_claude
+from engine.decision import parse_claude_output
+from engine.retrieval import retrieve
+
+logger = logging.getLogger(__name__)
+
+router = APIRouter()
+
+
+class CheckRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    transaction_id: str
+    amount: float
+    currency: str
+    sender_country: str
+    receiver_country: str
+    jurisdiction: str
+    transfer_count_24h: int = 1
+    avg_transfer_amount: Optional[float] = None
+
+    @model_validator(mode="after")
+    def _default_avg_transfer_amount(self) -> "CheckRequest":
+        if self.avg_transfer_amount is None:
+            self.avg_transfer_amount = self.amount
+        return self
+
+
+@router.post("/check")
+async def check_transaction(
+    payload: CheckRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    start = time.monotonic()
+    transaction = payload.model_dump()
+
+    try:
+        try:
+            chunks = await retrieve(transaction)
+        except Exception:
+            logger.warning(
+                "Retrieval failed; proceeding with empty regulatory context",
+                exc_info=True,
+            )
+            chunks = []
+
+        raw_output = await call_claude(transaction, chunks)
+
+        pre_commit_ms = int((time.monotonic() - start) * 1000)
+        response = parse_claude_output(
+            raw=raw_output,
+            transaction_id=payload.transaction_id,
+            processing_ms=pre_commit_ms,
+        )
+
+        try:
+            db.add(
+                Transaction(
+                    transaction_id=payload.transaction_id,
+                    request_payload=transaction,
+                    claude_raw_output=raw_output,
+                    decision=response["decision"],
+                    score=response["score"],
+                    confidence=response["confidence"],
+                    reason=response["reason"],
+                    rule_references=response["rule_references"],
+                    recommended_action=response["recommended_action"],
+                    processing_ms=pre_commit_ms,
+                )
+            )
+            await db.commit()
+        except Exception:
+            logger.exception("Audit log write failed")
+            await db.rollback()
+            return JSONResponse(
+                status_code=503,
+                content={"error": "Audit log unavailable"},
+            )
+
+        response["processing_ms"] = int((time.monotonic() - start) * 1000)
+        return response
+
+    except Exception:
+        logger.exception("Unhandled error in /check")
+        return JSONResponse(
+            status_code=503,
+            content={"error": "Service temporarily unavailable"},
+        )

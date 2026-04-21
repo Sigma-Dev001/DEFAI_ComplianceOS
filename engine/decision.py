@@ -7,6 +7,8 @@ REASON_RE = re.compile(
 )
 RULES_RE = re.compile(r"RULES:\s*(.+?)\Z", re.IGNORECASE | re.DOTALL)
 
+SANCTIONED_COUNTRIES = {"IR", "KP", "SY", "CU", "SD", "MM", "BY"}
+
 
 def _score_to_decision(score: int) -> str:
     if score <= 39:
@@ -50,7 +52,12 @@ def _parse_failure(transaction_id: str, processing_ms: int) -> dict:
     }
 
 
-def parse_claude_output(raw: str, transaction_id: str, processing_ms: int) -> dict:
+def parse_claude_output(
+    raw: str,
+    transaction_id: str,
+    transaction: dict,
+    processing_ms: int,
+) -> dict:
     if not raw or not isinstance(raw, str):
         return _parse_failure(transaction_id, processing_ms)
 
@@ -74,13 +81,28 @@ def parse_claude_output(raw: str, transaction_id: str, processing_ms: int) -> di
 
     decision = _score_to_decision(score)
 
+    if decision == "BLOCK" and score < 85:
+        sender = transaction.get("sender_country")
+        receiver = transaction.get("receiver_country")
+        if (
+            sender is not None
+            and receiver is not None
+            and sender not in SANCTIONED_COUNTRIES
+            and receiver not in SANCTIONED_COUNTRIES
+        ):
+            decision = "FLAG"
+
+    recommended_action = _decision_to_action(decision)
+    if decision == "FLAG":
+        recommended_action = "Hold for manual review"
+
     return {
         "decision": decision,
         "score": score,
         "confidence": confidence,
         "reason": reason,
         "rule_references": rule_references,
-        "recommended_action": _decision_to_action(decision),
+        "recommended_action": recommended_action,
         "trace_id": transaction_id,
         "processing_ms": processing_ms,
     }

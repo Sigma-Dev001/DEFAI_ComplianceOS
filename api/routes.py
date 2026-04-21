@@ -62,6 +62,7 @@ async def check_transaction(
         response = parse_claude_output(
             raw=raw_output,
             transaction_id=payload.transaction_id,
+            transaction=transaction,
             processing_ms=pre_commit_ms,
         )
 

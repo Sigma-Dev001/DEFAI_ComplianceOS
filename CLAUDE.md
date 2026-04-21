@@ -43,9 +43,9 @@ postgresql://epoch_user:devpassword@localhost:5432/complianceos_db
 - Step 2: db/session.py ✅ COMPLETE
 - Step 3: ingest/loader.py ✅ COMPLETE
 - Step 4: engine/retrieval.py ✅ COMPLETE
-- Step 5: engine/claude.py ← CURRENT TASK
-- Step 6: engine/decision.py
-- Step 7: api/routes.py
+- Step 5: engine/claude.py ✅ COMPLETE
+- Step 6: engine/decision.py ✅ COMPLETE
+- Step 7: api/routes.py ← CURRENT TASK
 - Step 8: main.py
 - Step 9: alerts/telegram.py
 - Step 10: tests/scenarios.py

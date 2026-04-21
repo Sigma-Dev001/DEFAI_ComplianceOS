@@ -2,6 +2,12 @@
 
 > Explainable AML/CFT compliance middleware — POST a transaction, get PASS/FLAG/BLOCK with regulatory citations in under 2 seconds.
 
+![Python](https://img.shields.io/badge/Python-3.12-blue)
+![FastAPI](https://img.shields.io/badge/FastAPI-async-green)
+![Claude](https://img.shields.io/badge/Claude-Opus%204.7-orange)
+![pgvector](https://img.shields.io/badge/PostgreSQL-pgvector-blue)
+![License](https://img.shields.io/badge/License-MIT-green)
+
 ## The problem
 
 A compliance officer at a mid-market crypto exchange reviews 10,000 transactions per day with a 3-person team. Industry false positive rates average 95% — meaning 9,500 alerts per day are noise. Each missed flag risks fines averaging $2M. Existing tools score risk but cannot explain why in regulatory language a compliance officer can cite to a regulator.
@@ -79,6 +85,13 @@ python3 main.py
 # 6.
 python3 tests/scenarios.py
 ```
+
+## Endpoints
+
+- `POST /check` — score a transaction and return PASS/FLAG/BLOCK with citations
+- `GET /audit` — last 20 decisions (trace_id, decision, score, confidence, reason, rules, processing_ms, created_at)
+- `GET /trace/{transaction_id}` — full audit row for a single transaction including Claude's raw reasoning
+- `GET /health` — liveness probe
 
 ## Tech stack
 

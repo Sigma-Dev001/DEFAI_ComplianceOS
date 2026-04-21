@@ -2,7 +2,16 @@
   "permissions": {
     "allow": [
       "Bash(git add *)",
-      "Bash(git commit -m ' *)"
+      "Bash(git commit -m ' *)",
+      "Bash(ps *)",
+      "Bash(python3 -c \"import fastapi, sqlalchemy, anthropic, sentence_transformers, httpx, telegram; print\\('deps ok'\\)\")",
+      "Bash(curl -s http://localhost:8000/health)",
+      "Bash(curl -s -X POST http://localhost:8000/check -H 'Content-Type: application/json' -d '{\"transaction_id\":\"probe_stale\",\"amount\":100,\"currency\":\"USD\",\"sender_country\":\"SG\",\"receiver_country\":\"UK\",\"jurisdiction\":\"MAS\"}')",
+      "Bash(python3 -c \"import sys, json; d=json.load\\(sys.stdin\\); print\\({k:d[k] for k in \\('decision','score','trace_id'\\)}\\)\")",
+      "Bash(kill 45315)",
+      "Bash(nohup python3 *)",
+      "Bash(echo \"started PID $!\")",
+      "Bash(python3 *)"
     ]
   }
 }

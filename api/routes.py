@@ -4,7 +4,7 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, ConfigDict, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -23,14 +23,24 @@ router = APIRouter()
 class CheckRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    transaction_id: str
-    amount: float
+    transaction_id: str = Field(..., description="Unique transaction identifier")
+    amount: float = Field(..., description="Transaction amount in the specified currency")
     currency: str
-    sender_country: str
-    receiver_country: str
-    jurisdiction: str
-    transfer_count_24h: int = 1
-    avg_transfer_amount: Optional[float] = None
+    sender_country: str = Field(
+        ..., description="ISO-2 country code of the sender e.g. SG, AE, IR"
+    )
+    receiver_country: str = Field(
+        ..., description="ISO-2 country code of the receiver"
+    )
+    jurisdiction: str = Field(
+        ..., description="Primary regulatory jurisdiction: FATF, MAS, FCA, MiCA"
+    )
+    transfer_count_24h: int = Field(
+        1, description="Number of transfers by this sender in last 24 hours"
+    )
+    avg_transfer_amount: Optional[float] = Field(
+        None, description="Average transfer amount in last 24 hours"
+    )
 
     @model_validator(mode="after")
     def _default_avg_transfer_amount(self) -> "CheckRequest":
@@ -39,7 +49,14 @@ class CheckRequest(BaseModel):
         return self
 
 
-@router.post("/check")
+@router.post(
+    "/check",
+    response_description=(
+        "Compliance decision (PASS/FLAG/BLOCK) with score, confidence, "
+        "plain-English reason, regulatory citations, recommended action, "
+        "trace_id, and processing time in milliseconds."
+    ),
+)
 async def check_transaction(
     payload: CheckRequest,
     db: AsyncSession = Depends(get_db),
@@ -113,7 +130,44 @@ async def check_transaction(
         )
 
 
-@router.get("/trace/{transaction_id}")
+@router.get(
+    "/audit",
+    response_description=(
+        "The 20 most recent decisions, ordered by created_at DESC. "
+        "Each row includes trace_id, decision, score, confidence, reason, "
+        "rule_references, processing_ms, and created_at."
+    ),
+)
+async def get_audit(db: AsyncSession = Depends(get_db)):
+    stmt = (
+        select(Transaction)
+        .order_by(Transaction.created_at.desc())
+        .limit(20)
+    )
+    result = await db.execute(stmt)
+    rows = result.scalars().all()
+    return [
+        {
+            "trace_id": row.transaction_id,
+            "decision": row.decision,
+            "score": row.score,
+            "confidence": row.confidence,
+            "reason": row.reason,
+            "rule_references": list(row.rule_references) if row.rule_references else [],
+            "processing_ms": row.processing_ms,
+            "created_at": row.created_at.isoformat() if row.created_at else None,
+        }
+        for row in rows
+    ]
+
+
+@router.get(
+    "/trace/{transaction_id}",
+    response_description=(
+        "Full audit row for the most recent decision on this transaction_id, "
+        "including the original request payload and Claude's raw reasoning output."
+    ),
+)
 async def get_trace(
     transaction_id: str,
     db: AsyncSession = Depends(get_db),

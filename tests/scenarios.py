@@ -21,6 +21,7 @@ REQUIRED_FIELDS = [
 SCENARIOS = [
     {
         "name": "SCENARIO 1 — CLEAN",
+        "display_name": "Clean (SG→UK)",
         "expected": "PASS",
         "payload": {
             "transaction_id": "demo_001",
@@ -35,6 +36,7 @@ SCENARIOS = [
     },
     {
         "name": "SCENARIO 2 — STRUCTURING",
+        "display_name": "Structuring (AE→SG)",
         "expected": "FLAG",
         "payload": {
             "transaction_id": "demo_002",
@@ -49,6 +51,7 @@ SCENARIOS = [
     },
     {
         "name": "SCENARIO 3 — SANCTIONS",
+        "display_name": "Sanctions (IR→UK)",
         "expected": "BLOCK",
         "payload": {
             "transaction_id": "demo_003",
@@ -62,6 +65,45 @@ SCENARIOS = [
         },
     },
 ]
+
+_SUMMARY_COLS = (21, 10, 7, 12)
+
+
+def _summary_cell(value: str, width: int) -> str:
+    return " " + value + " " * (width - 1 - len(value))
+
+
+def _summary_hline(left: str, mid: str, right: str) -> str:
+    return left + mid.join("─" * w for w in _SUMMARY_COLS) + right
+
+
+def _summary_row(c1: str, c2: str, c3: str, c4: str) -> str:
+    cells = [
+        _summary_cell(c1, _SUMMARY_COLS[0]),
+        _summary_cell(c2, _SUMMARY_COLS[1]),
+        _summary_cell(c3, _SUMMARY_COLS[2]),
+        _summary_cell(c4, _SUMMARY_COLS[3]),
+    ]
+    return "│" + "│".join(cells) + "│"
+
+
+def _print_header() -> None:
+    print("=" * 60)
+    print("DEFAI ComplianceOS — Live Demo")
+    print("Powered by Claude Opus 4.7 + FATF/MiCA/FCA/MAS")
+    print("=" * 60)
+
+
+def _print_summary(results: list[tuple[str, str, str, bool]]) -> None:
+    print(_summary_hline("┌", "┬", "┐"))
+    print(_summary_row("Scenario", "Expected", "Got", "Status"))
+    print(_summary_hline("├", "┼", "┤"))
+    for display_name, expected, got, ok in results:
+        status = "✓" if ok else "✗"
+        print(_summary_row(display_name, expected, got, status))
+    print(_summary_hline("└", "┴", "┘"))
+    passed = sum(1 for _, _, _, ok in results if ok)
+    print(f"Results: {passed}/{len(results)} passed")
 
 
 def _assertion_failures(body: dict, expected_decision: str, transaction_id: str) -> list[str]:
@@ -93,7 +135,9 @@ def _assertion_failures(body: dict, expected_decision: str, transaction_id: str)
     return failures
 
 
-async def _run_scenario(client: httpx.AsyncClient, scenario: dict) -> bool:
+async def _run_scenario(
+    client: httpx.AsyncClient, scenario: dict
+) -> tuple[bool, str]:
     name = scenario["name"]
     expected = scenario["expected"]
     payload = scenario["payload"]
@@ -109,27 +153,28 @@ async def _run_scenario(client: httpx.AsyncClient, scenario: dict) -> bool:
     except httpx.HTTPError as exc:
         print(f"Request failed: {exc!r}")
         print("Result: ✗ FAIL — request error")
-        return False
+        return False, "ERR"
 
     if resp.status_code != 200:
         print(f"HTTP {resp.status_code}")
         print(resp.text)
         print(f"Result: ✗ FAIL — HTTP {resp.status_code}")
-        return False
+        return False, "ERR"
 
     try:
         body = resp.json()
     except ValueError:
         print(resp.text)
         print("Result: ✗ FAIL — response was not valid JSON")
-        return False
+        return False, "ERR"
 
     print(json.dumps(body, indent=2))
 
+    got = str(body.get("decision") or "ERR")
     failures = _assertion_failures(body, expected, payload["transaction_id"])
     if not failures:
         print("\nResult: ✓ PASS")
-        return True
+        return True, got
 
     decision_mismatch = next(
         (f for f in failures if f.startswith("decision mismatch")), None
@@ -140,22 +185,24 @@ async def _run_scenario(client: httpx.AsyncClient, scenario: dict) -> bool:
         )
     else:
         print(f"\nResult: ✗ FAIL — {'; '.join(failures)}")
-    return False
+    return False, got
 
 
 async def run_scenarios() -> int:
-    passed = 0
+    _print_header()
+    results: list[tuple[str, str, str, bool]] = []
     async with httpx.AsyncClient() as client:
         for i, scenario in enumerate(SCENARIOS):
             if i > 0:
                 print("\n" + "-" * 60 + "\n")
-            ok = await _run_scenario(client, scenario)
-            if ok:
-                passed += 1
+            ok, got = await _run_scenario(client, scenario)
+            results.append(
+                (scenario["display_name"], scenario["expected"], got, ok)
+            )
 
     print("\n" + "-" * 60)
-    print(f"Results: {passed}/{len(SCENARIOS)} passed")
-    return 0 if passed == len(SCENARIOS) else 1
+    _print_summary(results)
+    return 0 if all(ok for _, _, _, ok in results) else 1
 
 
 if __name__ == "__main__":

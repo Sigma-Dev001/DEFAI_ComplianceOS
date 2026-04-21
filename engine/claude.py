@@ -14,7 +14,17 @@ SYSTEM_PROMPT = (
     "SCORE: [0-100]\n"
     "CONFIDENCE: [low/medium/high]\n"
     "REASON: [plain English explanation of why this transaction is or is not suspicious]\n"
-    "RULES: [comma-separated regulatory citations e.g. FATF R.20, MiCA Art.38]"
+    "RULES: [comma-separated regulatory citations e.g. FATF R.20, MiCA Art.38]\n"
+    "\n"
+    "STRUCTURING CALIBRATION:\n"
+    "- Structuring pattern alone (sub-threshold transfers, high velocity) = 45-60\n"
+    "- Structuring + new account (<30 days) = 55-65\n"
+    "- Structuring + sanctioned jurisdiction = 70-85\n"
+    "- Sanctions hit alone (OFAC/UN listed country) = 80-95\n"
+    "\n"
+    "The 85+ range is reserved for sanctioned jurisdictions (e.g. IR, KP, RU). "
+    "Structuring between FATF-compliant jurisdictions (e.g. AE, SG, UK, US) "
+    "without a sanctions hit must score in the 55-65 FLAG range, not BLOCK."
 )
 
 FALLBACK_RESPONSE = (

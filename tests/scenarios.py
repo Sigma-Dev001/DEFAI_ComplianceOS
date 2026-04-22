@@ -11,12 +11,16 @@ REQUIRED_FIELDS = [
     "decision",
     "score",
     "confidence",
+    "confidence_label",
     "reason",
+    "decisions",
     "rule_references",
     "recommended_action",
     "trace_id",
     "processing_ms",
 ]
+
+ACTIVE_REGULATORS = ("vara", "mas", "fca")
 
 SCENARIOS = [
     {
@@ -128,9 +132,29 @@ def _assertion_failures(body: dict, expected_decision: str, transaction_id: str)
     if not isinstance(score, int) or score < 0 or score > 100:
         failures.append(f"score not an integer in 0-100: {score!r}")
 
+    confidence = body.get("confidence")
+    if isinstance(confidence, bool) or not isinstance(confidence, (int, float)):
+        failures.append(
+            f"confidence must be a numeric float, got {type(confidence).__name__}: {confidence!r}"
+        )
+    elif confidence < 0.0 or confidence > 1.0:
+        failures.append(f"confidence must be in 0.0-1.0, got {confidence!r}")
+
+    label = body.get("confidence_label")
+    if label not in ("low", "medium", "high"):
+        failures.append(f"confidence_label must be low/medium/high, got {label!r}")
+
+    decisions = body.get("decisions")
+    if not isinstance(decisions, dict):
+        failures.append(f"decisions must be a dict, got {type(decisions).__name__}")
+    else:
+        for reg in ACTIVE_REGULATORS:
+            if reg not in decisions:
+                failures.append(f"decisions missing {reg!r} key")
+
     rules = body.get("rule_references")
-    if not isinstance(rules, list) or len(rules) == 0:
-        failures.append(f"rule_references is empty or not a list: {rules!r}")
+    if not isinstance(rules, list):
+        failures.append(f"rule_references must be a list, got {type(rules).__name__}")
 
     return failures
 

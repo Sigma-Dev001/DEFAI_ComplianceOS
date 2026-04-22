@@ -1,18 +1,47 @@
+import hashlib
+import json
 import re
 
-SCORE_RE = re.compile(r"SCORE:\s*(\d{1,3})", re.IGNORECASE)
-CONFIDENCE_RE = re.compile(r"CONFIDENCE:\s*(low|medium|high)", re.IGNORECASE)
-REASON_RE = re.compile(
-    r"REASON:\s*(.+?)(?=\n\s*RULES:|\Z)", re.IGNORECASE | re.DOTALL
-)
-RULES_RE = re.compile(
-    r"RULES:\s*(.+?)(?=\n\s*\n|\n\s*(?:SCORE|CONFIDENCE|REASON|DECISION):|\Z)",
-    re.IGNORECASE | re.DOTALL,
-)
-
-_RULE_META_MARKERS = ("Decision:", "SCORE:", "CONFIDENCE:", "REASON:")
-
 SANCTIONED_COUNTRIES = {"IR", "KP", "SY", "CU", "SD", "MM", "BY"}
+
+_JSON_FENCE_RE = re.compile(r"```(?:json)?\s*(\{.*\})\s*```", re.IGNORECASE | re.DOTALL)
+_JSON_BLOB_RE = re.compile(r"\{.*\}", re.DOTALL)
+
+_CITATION_KEYS = (
+    "jurisdiction",
+    "instrument",
+    "rule_id",
+    "effective_date",
+    "quote_excerpt",
+)
+
+_ACTION_BY_DECISION = {
+    "PASS": "Transaction cleared",
+    "FLAG": "Hold for manual review",
+    "BLOCK": "Block transaction immediately",
+}
+
+
+def _extract_json(raw: str) -> dict | None:
+    if not raw or not isinstance(raw, str):
+        return None
+    try:
+        return json.loads(raw)
+    except (ValueError, TypeError):
+        pass
+    fence = _JSON_FENCE_RE.search(raw)
+    if fence:
+        try:
+            return json.loads(fence.group(1))
+        except (ValueError, TypeError):
+            pass
+    blob = _JSON_BLOB_RE.search(raw)
+    if blob:
+        try:
+            return json.loads(blob.group(0))
+        except (ValueError, TypeError):
+            pass
+    return None
 
 
 def _score_to_decision(score: int) -> str:
@@ -23,41 +52,92 @@ def _score_to_decision(score: int) -> str:
     return "BLOCK"
 
 
-def _decision_to_action(decision: str) -> str:
-    return {
-        "PASS": "Transaction cleared",
-        "FLAG": "Hold for manual review",
-        "BLOCK": "Block transaction immediately",
-    }[decision]
+def _clamp_score(value) -> int:
+    try:
+        score = int(round(float(value)))
+    except (ValueError, TypeError):
+        score = 50
+    return max(0, min(100, score))
 
 
-def _parse_rules(raw_rules: str) -> list[str]:
-    if not raw_rules:
-        return []
-    stripped = raw_rules.strip()
-    if stripped.lower() in {"none", "n/a", "-"}:
-        return []
-    cleaned: list[str] = []
-    for part in stripped.split(","):
-        piece = part.strip()
-        if not piece or piece.lower() == "none":
-            continue
-        if any(marker in piece for marker in _RULE_META_MARKERS):
-            continue
-        cleaned.append(piece)
+def _clamp_confidence(value) -> float:
+    try:
+        conf = float(value)
+    except (ValueError, TypeError):
+        conf = 0.5
+    return round(max(0.0, min(1.0, conf)), 2)
+
+
+def _confidence_label(confidence: float) -> str:
+    if confidence < 0.4:
+        return "low"
+    if confidence <= 0.7:
+        return "medium"
+    return "high"
+
+
+def _normalize_citation(raw: dict) -> dict | None:
+    if not isinstance(raw, dict):
+        return None
+    cleaned = {}
+    for key in _CITATION_KEYS:
+        value = raw.get(key)
+        if value is None:
+            return None
+        cleaned[key] = str(value).strip()
+        if not cleaned[key]:
+            return None
     return cleaned
 
 
-def _parse_failure(transaction_id: str, processing_ms: int) -> dict:
+def _normalize_citations(raw_list) -> list[dict]:
+    if not isinstance(raw_list, list):
+        return []
+    out: list[dict] = []
+    for item in raw_list:
+        normalized = _normalize_citation(item)
+        if normalized is not None:
+            out.append(normalized)
+    return out
+
+
+def _snapshot_hash(chunks_by_jur: dict[str, list[dict]] | None) -> str | None:
+    if not chunks_by_jur:
+        return None
+    tuples: list[tuple[str, str, str]] = []
+    for jur, chunks in chunks_by_jur.items():
+        for chunk in chunks or []:
+            tuples.append(
+                (
+                    str(chunk.get("jurisdiction", jur) or ""),
+                    str(chunk.get("source_document", "") or ""),
+                    str(chunk.get("ingested_at", "") or ""),
+                )
+            )
+    if not tuples:
+        return None
+    tuples.sort()
+    hasher = hashlib.sha256()
+    for t in tuples:
+        hasher.update(("|".join(t) + "\n").encode("utf-8"))
+    return hasher.hexdigest()[:16]
+
+
+def _parse_failure(
+    transaction_id: str, processing_ms: int, reg_snapshot_id: str | None
+) -> dict:
     return {
         "decision": "FLAG",
         "score": 50,
-        "confidence": "low",
+        "confidence": 0.30,
+        "confidence_label": "low",
         "reason": "Parse error — manual review required",
+        "decisions": {},
         "rule_references": [],
         "recommended_action": "Hold for manual review",
         "trace_id": transaction_id,
         "processing_ms": processing_ms,
+        "reg_snapshot_id": reg_snapshot_id,
     }
 
 
@@ -66,55 +146,92 @@ def parse_claude_output(
     transaction_id: str,
     transaction: dict,
     processing_ms: int,
+    chunks_by_jur: dict[str, list[dict]] | None = None,
 ) -> dict:
-    if not raw or not isinstance(raw, str):
-        return _parse_failure(transaction_id, processing_ms)
+    reg_snapshot_id = _snapshot_hash(chunks_by_jur)
+    data = _extract_json(raw)
+    if data is None or not isinstance(data.get("decisions"), dict):
+        return _parse_failure(transaction_id, processing_ms, reg_snapshot_id)
 
-    score_match = SCORE_RE.search(raw)
-    confidence_match = CONFIDENCE_RE.search(raw)
-    reason_match = REASON_RE.search(raw)
-    rules_match = RULES_RE.search(raw)
+    sender = transaction.get("sender_country")
+    receiver = transaction.get("receiver_country")
+    sanctions_hit = (
+        sender in SANCTIONED_COUNTRIES or receiver in SANCTIONED_COUNTRIES
+    )
 
-    if not score_match or not confidence_match or not reason_match:
-        return _parse_failure(transaction_id, processing_ms)
+    processed: dict[str, dict] = {}
+    flat_citations: list[dict] = []
+    max_score = 0
+    has_block = False
+    has_flag = False
 
-    try:
-        score = int(score_match.group(1))
-    except ValueError:
-        return _parse_failure(transaction_id, processing_ms)
+    for reg_key, reg_body in data["decisions"].items():
+        if not isinstance(reg_body, dict):
+            continue
+        score = _clamp_score(reg_body.get("score"))
+        reg_decision = _score_to_decision(score)
 
-    score = max(0, min(100, score))
-    confidence = confidence_match.group(1).lower()
-    reason = reason_match.group(1).strip()
-    rule_references = _parse_rules(rules_match.group(1) if rules_match else "")
-
-    decision = _score_to_decision(score)
-
-    if decision == "BLOCK" and score < 85:
-        sender_country = transaction.get("sender_country")
-        receiver_country = transaction.get("receiver_country")
-        is_sanctioned = (
-            sender_country in SANCTIONED_COUNTRIES
-            or receiver_country in SANCTIONED_COUNTRIES
-        )
         if (
-            sender_country is not None
-            and receiver_country is not None
-            and not is_sanctioned
+            reg_decision == "BLOCK"
+            and score < 85
+            and not sanctions_hit
+            and sender is not None
+            and receiver is not None
         ):
-            decision = "FLAG"
+            reg_decision = "FLAG"
 
-    recommended_action = _decision_to_action(decision)
-    if decision == "FLAG":
+        citations = _normalize_citations(reg_body.get("citations"))
+        processed[str(reg_key).lower()] = {
+            "decision": reg_decision,
+            "score": score,
+            "citations": citations,
+        }
+        flat_citations.extend(citations)
+        max_score = max(max_score, score)
+        if reg_decision == "BLOCK":
+            has_block = True
+        elif reg_decision == "FLAG":
+            has_flag = True
+
+    if not processed:
+        return _parse_failure(transaction_id, processing_ms, reg_snapshot_id)
+
+    if has_block:
+        aggregate_decision = "BLOCK"
+    elif has_flag:
+        aggregate_decision = "FLAG"
+    else:
+        aggregate_decision = "PASS"
+
+    seen: set[tuple[str, str]] = set()
+    unique_citations: list[dict] = []
+    for citation in flat_citations:
+        key = (citation["jurisdiction"], citation["rule_id"])
+        if key in seen:
+            continue
+        seen.add(key)
+        unique_citations.append(citation)
+
+    confidence = _clamp_confidence(data.get("confidence"))
+    summary = str(
+        data.get("summary_reason") or data.get("reason") or "Manual review required"
+    ).strip()
+    recommended_action = str(
+        data.get("recommended_action") or _ACTION_BY_DECISION[aggregate_decision]
+    ).strip()
+    if aggregate_decision == "FLAG" and not recommended_action:
         recommended_action = "Hold for manual review"
 
     return {
-        "decision": decision,
-        "score": score,
+        "decision": aggregate_decision,
+        "score": max_score,
         "confidence": confidence,
-        "reason": reason,
-        "rule_references": rule_references,
+        "confidence_label": _confidence_label(confidence),
+        "reason": summary,
+        "decisions": processed,
+        "rule_references": unique_citations,
         "recommended_action": recommended_action,
         "trace_id": transaction_id,
         "processing_ms": processing_ms,
+        "reg_snapshot_id": reg_snapshot_id,
     }

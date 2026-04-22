@@ -6,16 +6,24 @@ from telegram import Bot
 logger = logging.getLogger(__name__)
 
 
+def _format_rule(rule) -> str:
+    if isinstance(rule, dict):
+        jur = str(rule.get("jurisdiction") or "").strip()
+        rule_id = str(rule.get("rule_id") or "").strip()
+        return " ".join(part for part in (jur, rule_id) if part) or "citation"
+    return str(rule)
+
+
 def _format_message(
     decision: str,
     score: int,
     confidence: str,
     reason: str,
     trace_id: str,
-    rule_references: list[str],
+    rule_references: list,
 ) -> str:
     if rule_references:
-        rules_block = "\n".join(f"• {rule}" for rule in rule_references)
+        rules_block = "\n".join(f"• {_format_rule(rule)}" for rule in rule_references)
     else:
         rules_block = "• none"
 

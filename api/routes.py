@@ -66,15 +66,15 @@ async def check_transaction(
 
     try:
         try:
-            chunks = await retrieve(transaction)
+            chunks_by_jur = await retrieve(transaction)
         except Exception:
             logger.warning(
                 "Retrieval failed; proceeding with empty regulatory context",
                 exc_info=True,
             )
-            chunks = []
+            chunks_by_jur = {}
 
-        raw_output = await call_claude(transaction, chunks)
+        raw_output = await call_claude(transaction, chunks_by_jur)
 
         pre_commit_ms = int((time.monotonic() - start) * 1000)
         response = parse_claude_output(
@@ -82,6 +82,7 @@ async def check_transaction(
             transaction_id=payload.transaction_id,
             transaction=transaction,
             processing_ms=pre_commit_ms,
+            chunks_by_jur=chunks_by_jur,
         )
 
         try:
@@ -96,6 +97,8 @@ async def check_transaction(
                     reason=response["reason"],
                     rule_references=response["rule_references"],
                     recommended_action=response["recommended_action"],
+                    decisions=response["decisions"],
+                    reg_snapshot_id=response.get("reg_snapshot_id"),
                     processing_ms=pre_commit_ms,
                 )
             )
@@ -108,13 +111,14 @@ async def check_transaction(
                 content={"error": "Audit log unavailable"},
             )
 
+        response.pop("reg_snapshot_id", None)
         response["processing_ms"] = int((time.monotonic() - start) * 1000)
 
         if response["decision"] in ("FLAG", "BLOCK"):
             await send_alert(
                 decision=response["decision"],
                 score=response["score"],
-                confidence=response["confidence"],
+                confidence=response["confidence_label"],
                 reason=response["reason"],
                 trace_id=response["trace_id"],
                 rule_references=response["rule_references"],
@@ -154,6 +158,7 @@ async def get_audit(db: AsyncSession = Depends(get_db)):
             "confidence": row.confidence,
             "reason": row.reason,
             "rule_references": list(row.rule_references) if row.rule_references else [],
+            "decisions": row.decisions,
             "processing_ms": row.processing_ms,
             "created_at": row.created_at.isoformat() if row.created_at else None,
         }
@@ -195,6 +200,8 @@ async def get_trace(
         "reason": row.reason,
         "rule_references": list(row.rule_references) if row.rule_references else [],
         "recommended_action": row.recommended_action,
+        "decisions": row.decisions,
+        "reg_snapshot_id": row.reg_snapshot_id,
         "processing_ms": row.processing_ms,
         "created_at": row.created_at.isoformat() if row.created_at else None,
     }

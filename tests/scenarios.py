@@ -1,3 +1,4 @@
+import argparse
 import asyncio
 import json
 import sys
@@ -87,6 +88,103 @@ SCENARIOS = [
     },
 ]
 
+_USE_COLOR = sys.stdout.isatty()
+_RESET = "\033[0m" if _USE_COLOR else ""
+_BOLD = "\033[1m" if _USE_COLOR else ""
+_DIM = "\033[2m" if _USE_COLOR else ""
+_GREEN = "\033[32m" if _USE_COLOR else ""
+_YELLOW = "\033[33m" if _USE_COLOR else ""
+_RED = "\033[31m" if _USE_COLOR else ""
+_CYAN = "\033[36m" if _USE_COLOR else ""
+
+_DECISION_COLOR = {
+    "PASS": _GREEN,
+    "FLAG": _YELLOW,
+    "BLOCK": _RED,
+}
+
+
+def _color_decision(decision: str) -> str:
+    color = _DECISION_COLOR.get(decision, "")
+    return f"{color}{_BOLD}{decision}{_RESET}"
+
+
+def _truncate_one_line(text: str, width: int = 96) -> str:
+    collapsed = " ".join((text or "").split())
+    if len(collapsed) <= width:
+        return collapsed
+    return collapsed[: width - 1].rstrip() + "…"
+
+
+def _print_header() -> None:
+    bar = "═" * 64
+    print(f"{_CYAN}{bar}{_RESET}")
+    print(f"{_BOLD}  DEFAI ComplianceOS — Live Demo{_RESET}")
+    print("  Powered by Claude Opus 4.7 + FATF/VARA/MAS/FCA")
+    print(f"{_CYAN}{bar}{_RESET}")
+
+
+def _print_scenario_header(scenario: dict) -> None:
+    bar = "─" * 64
+    print()
+    print(f"{_CYAN}{bar}{_RESET}")
+    print(f"  {_BOLD}{scenario['name']}{_RESET}")
+    print(f"  {scenario['display_name']}")
+    print(f"  Expected: {_color_decision(scenario['expected'])}")
+    print(f"{_CYAN}{bar}{_RESET}")
+
+
+def _print_clean_response(body: dict) -> None:
+    decision = str(body.get("decision") or "—")
+    score = body.get("score")
+    confidence = body.get("confidence")
+    confidence_label = body.get("confidence_label")
+    reason = body.get("reason") or ""
+    processing_ms = body.get("processing_ms")
+    per_reg = body.get("decisions") or {}
+    rule_refs = body.get("rule_references") or []
+
+    print()
+    print(f"  Decision    : {_color_decision(decision)}")
+    if isinstance(score, int):
+        print(f"  Score       : {score}/100")
+    else:
+        print(f"  Score       : {score}")
+    if isinstance(confidence, (int, float)):
+        print(f"  Confidence  : {confidence:.2f} ({confidence_label})")
+    else:
+        print(f"  Confidence  : {confidence} ({confidence_label})")
+    print(f"  Reason      : {_truncate_one_line(reason)}")
+    if isinstance(processing_ms, int):
+        print(f"  Processing  : {processing_ms:,} ms")
+    else:
+        print(f"  Processing  : {processing_ms}")
+
+    if isinstance(per_reg, dict) and per_reg:
+        print()
+        print(f"  {_BOLD}Per-regulator:{_RESET}")
+        for reg in ACTIVE_REGULATORS:
+            entry = per_reg.get(reg) or {}
+            reg_decision = str(entry.get("decision") or "—")
+            reg_score = entry.get("score")
+            score_str = f"score {reg_score}" if reg_score is not None else "no score"
+            print(
+                f"    {reg.upper():<4}  {_color_decision(reg_decision)}  ({score_str})"
+            )
+
+    if rule_refs:
+        print()
+        print(f"  {_BOLD}Rule references ({len(rule_refs)}):{_RESET}")
+        for cite in rule_refs:
+            if isinstance(cite, dict):
+                jur = (cite.get("jurisdiction") or "").strip()
+                rid = (cite.get("rule_id") or "").strip()
+                line = f"{jur:<4}  {rid}" if jur else rid or "(citation)"
+            else:
+                line = str(cite)
+            print(f"    • {line}")
+
+
 _SUMMARY_COLS = (21, 10, 7, 12)
 
 
@@ -108,14 +206,8 @@ def _summary_row(c1: str, c2: str, c3: str, c4: str) -> str:
     return "│" + "│".join(cells) + "│"
 
 
-def _print_header() -> None:
-    print("=" * 60)
-    print("DEFAI ComplianceOS — Live Demo")
-    print("Powered by Claude Opus 4.7 + FATF/MiCA/FCA/MAS")
-    print("=" * 60)
-
-
 def _print_summary(results: list[tuple[str, str, str, bool]]) -> None:
+    print()
     print(_summary_hline("┌", "┬", "┐"))
     print(_summary_row("Scenario", "Expected", "Got", "Status"))
     print(_summary_hline("├", "┼", "┤"))
@@ -124,7 +216,9 @@ def _print_summary(results: list[tuple[str, str, str, bool]]) -> None:
         print(_summary_row(display_name, expected, got, status))
     print(_summary_hline("└", "┴", "┘"))
     passed = sum(1 for _, _, _, ok in results if ok)
-    print(f"Results: {passed}/{len(results)} passed")
+    total = len(results)
+    color = _GREEN if passed == total else _RED
+    print(f"{color}{_BOLD}Results: {passed}/{total} passed{_RESET}")
 
 
 def _assertion_failures(
@@ -184,39 +278,41 @@ def _assertion_failures(
 
 
 async def _run_scenario(
-    client: httpx.AsyncClient, scenario: dict
+    client: httpx.AsyncClient, scenario: dict, verbose: bool
 ) -> tuple[bool, str]:
-    name = scenario["name"]
     expected = scenario["expected"]
     payload = scenario["payload"]
 
-    print("=" * 60)
-    print(f"{name} (expected: {expected})")
-    print("=" * 60)
+    _print_scenario_header(scenario)
 
     try:
         resp = await client.post(
             f"{BASE_URL}/check", json=payload, timeout=REQUEST_TIMEOUT
         )
     except httpx.HTTPError as exc:
-        print(f"Request failed: {exc!r}")
-        print("Result: ✗ FAIL — request error")
+        print(f"  {_RED}Request failed:{_RESET} {exc!r}")
+        print(f"  {_RED}{_BOLD}Result: ✗ FAIL{_RESET} — request error")
         return False, "ERR"
 
     if resp.status_code != 200:
-        print(f"HTTP {resp.status_code}")
-        print(resp.text)
-        print(f"Result: ✗ FAIL — HTTP {resp.status_code}")
+        print(f"  {_RED}HTTP {resp.status_code}{_RESET}")
+        print(f"  {resp.text}")
+        print(f"  {_RED}{_BOLD}Result: ✗ FAIL{_RESET} — HTTP {resp.status_code}")
         return False, "ERR"
 
     try:
         body = resp.json()
     except ValueError:
-        print(resp.text)
-        print("Result: ✗ FAIL — response was not valid JSON")
+        print(f"  {resp.text}")
+        print(f"  {_RED}{_BOLD}Result: ✗ FAIL{_RESET} — response was not valid JSON")
         return False, "ERR"
 
-    print(json.dumps(body, indent=2))
+    _print_clean_response(body)
+    if verbose:
+        print()
+        print(f"  {_DIM}--- raw JSON ---{_RESET}")
+        for line in json.dumps(body, indent=2).splitlines():
+            print(f"  {line}")
 
     got = str(body.get("decision") or "ERR")
     failures = _assertion_failures(
@@ -225,38 +321,52 @@ async def _run_scenario(
         payload["transaction_id"],
         assert_score=scenario.get("assert_score"),
     )
+
     if not failures:
-        print("\nResult: ✓ PASS")
+        print()
+        print(f"  {_GREEN}{_BOLD}Result: ✓ PASS{_RESET}")
         return True, got
 
     decision_mismatch = next(
         (f for f in failures if f.startswith("decision mismatch")), None
     )
+    print()
     if decision_mismatch:
         print(
-            f"\nResult: ✗ FAIL — expected {expected} got {body.get('decision')}"
+            f"  {_RED}{_BOLD}Result: ✗ FAIL{_RESET} — expected "
+            f"{_color_decision(expected)} got {_color_decision(str(body.get('decision')))}"
         )
     else:
-        print(f"\nResult: ✗ FAIL — {'; '.join(failures)}")
+        print(f"  {_RED}{_BOLD}Result: ✗ FAIL{_RESET} — {'; '.join(failures)}")
     return False, got
 
 
-async def run_scenarios() -> int:
+async def run_scenarios(verbose: bool = False) -> int:
     _print_header()
     results: list[tuple[str, str, str, bool]] = []
     async with httpx.AsyncClient() as client:
-        for i, scenario in enumerate(SCENARIOS):
-            if i > 0:
-                print("\n" + "-" * 60 + "\n")
-            ok, got = await _run_scenario(client, scenario)
+        for scenario in SCENARIOS:
+            ok, got = await _run_scenario(client, scenario, verbose)
             results.append(
                 (scenario["display_name"], scenario["expected"], got, ok)
             )
 
-    print("\n" + "-" * 60)
     _print_summary(results)
     return 0 if all(ok for _, _, _, ok in results) else 1
 
 
+def _parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Run the DEFAI ComplianceOS demo scenarios against a running server."
+    )
+    parser.add_argument(
+        "--verbose",
+        action="store_true",
+        help="Also print the full raw JSON response for each scenario.",
+    )
+    return parser.parse_args()
+
+
 if __name__ == "__main__":
-    sys.exit(asyncio.run(run_scenarios()))
+    args = _parse_args()
+    sys.exit(asyncio.run(run_scenarios(verbose=args.verbose)))

@@ -24,8 +24,9 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="DEFAI ComplianceOS",
     description=(
-        "AML/CFT compliance middleware. POST a transaction, "
-        "get PASS/FLAG/BLOCK with regulatory citations in under 2 seconds."
+        "AML/CFT compliance middleware. POST a transaction, get per-regulator "
+        "PASS/FLAG/BLOCK with clause-level citations. "
+        "Latency: OFAC path <500ms, Claude reasoning path ~20s."
     ),
     version="1.0.0",
     contact={

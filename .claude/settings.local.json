@@ -11,7 +11,21 @@
       "Bash(kill 45315)",
       "Bash(nohup python3 *)",
       "Bash(echo \"started PID $!\")",
-      "Bash(python3 *)"
+      "Bash(python3 *)",
+      "Bash(chmod +x demo.sh)",
+      "Bash(git commit *)",
+      "Bash(git push *)",
+      "Bash(curl -sSIL -o /dev/null -w \"status=%{http_code} url=%{url_effective} type=%{content_type}\\\\n\" \"https://www.vara.ae/media/rulebooks/compliance-risk-management-rulebook.pdf\" \"https://www.vara.ae/media/rulebooks/company-rulebook.pdf\" \"https://www.mas.gov.sg/regulation/notices/2019/psn02\")",
+      "WebFetch(domain:www.vara.ae)",
+      "WebSearch",
+      "Bash(curl -sSL -A \"Mozilla/5.0\" -o VARA_ComplianceRisk_Rulebook.pdf \"https://rulebooks.vara.ae/sites/default/files/en_net_file_store/VARA_EN_123_VER1.pdf\")",
+      "Bash(curl -sSL -A \"Mozilla/5.0\" -o VARA_Company_Rulebook.pdf \"https://rulebooks.vara.ae/sites/default/files/en_net_file_store/VARA_EN_36_VER984.pdf\")",
+      "Bash(curl -sSL -A \"Mozilla/5.0\" -o MAS_PSN02_AML_CFT.pdf \"https://www.mas.gov.sg/-/media/amld-amendments---30-june-2025/mas-notice-psn02.pdf\")",
+      "Bash(file *.pdf)",
+      "Bash(rm -f MAS_PSN02_AML_CFT.pdf)",
+      "Bash(curl -sSL -A 'Mozilla/5.0 \\(X11; Linux x86_64\\) AppleWebKit/537.36 \\(KHTML, like Gecko\\) Chrome/120.0 Safari/537.36' -H 'Accept: application/pdf,*/*' -o MAS_PSN02_AML_CFT.pdf https://www.mas.gov.sg/-/media/mas-media-library/regulation/notices/amld/psn02-aml-cft-notice---digital-payment-token-service/notice-psn02-dated-2-april-2024.pdf)",
+      "Bash(docker compose *)",
+      "Bash(PGPASSWORD=devpassword psql *)"
     ]
   }
 }

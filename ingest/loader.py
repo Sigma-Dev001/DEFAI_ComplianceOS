@@ -21,15 +21,14 @@ _SENT_SPLIT = re.compile(r"(?<=[.!?])\s+")
 
 
 def detect_jurisdiction(filename: str) -> str:
-    lower = filename.lower()
-    if "FATF" in filename:
-        return "FATF"
-    if "MiCA" in filename or "mica" in lower or "CELEX_32023R1114" in filename:
-        return "MiCA"
-    if "FCG" in filename or "fca" in lower:
-        return "FCA"
+    if "VARA" in filename:
+        return "VARA"
     if "MAS" in filename:
         return "MAS"
+    if "FCG" in filename:
+        return "FCA"
+    if "FATF" in filename:
+        return "FATF"
     return "GENERAL"
 
 

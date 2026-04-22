@@ -24,23 +24,48 @@ SYSTEM_PROMPT = (
     '    "fca":  {"score": 0, "citations": [<citation>, ...]}\n'
     "  },\n"
     '  "confidence": 0.00,\n'
-    '  "summary_reason": "one to two sentence overall summary",\n'
+    '  "summary_reason": "one to two sentence factual summary tying transaction fields to cited rules",\n'
     '  "recommended_action": "string"\n'
     "}\n\n"
-    "Each <citation> object MUST have all five keys populated:\n"
-    '  {"jurisdiction": "VARA", "instrument": "Compliance and Risk Management Rulebook", '
-    '"rule_id": "Part II Rule 1.2", "effective_date": "2023-02-07", '
-    '"quote_excerpt": "<=60 word direct quote from the clause"}\n\n'
-    "confidence MUST be a float between 0.00 and 1.00 expressing your overall "
-    "certainty. FATF chunks are provided as supporting context — cite them when "
-    "relevant but do NOT produce a top-level FATF decision.\n\n"
-    "Scoring anchors (non-negotiable):\n"
-    "- Transaction involving OFAC/UN sanctioned country (IR, KP, SY, CU, SD, MM, "
-    "BY): every regulator must score 80+, decision BLOCK.\n"
-    "- Sub-threshold high-velocity structuring between FATF-compliant "
-    "jurisdictions (e.g. AE to SG): score 45-65, decision FLAG. The human "
-    "reviewer escalates to BLOCK, not you.\n"
-    "- Clean single transfer between regulated jurisdictions: score 10-30, PASS."
+    "CITATION REQUIREMENT — every citation must defend the score against a real "
+    "clause. Each <citation> object MUST have all six keys populated:\n"
+    "  {\n"
+    '    "jurisdiction": "VARA",\n'
+    '    "instrument": "Compliance and Risk Management Rulebook",\n'
+    '    "rule_id": "Part II Rule 1.2",\n'
+    '    "effective_date": "2023-02-07",\n'
+    '    "quote_excerpt": "verbatim direct quote from the regulatory clause, 60 words or fewer",\n'
+    '    "mapping": "This transaction triggers [rule_id] because [specific transaction field, e.g. transfer_count_24h=7] satisfies [element of the rule, e.g. \'unusual pattern\']."\n'
+    "  }\n\n"
+    "- quote_excerpt is a verbatim extract from the regulatory text, 60 words or fewer.\n"
+    "- mapping is ONE sentence that names a specific field from the transaction "
+    "(amount, currency, sender_country, receiver_country, transfer_count_24h, "
+    "avg_transfer_amount, jurisdiction) AND the specific element of the cited "
+    "rule that the field satisfies.\n\n"
+    "Narrative language such as \"transaction exhibits structuring behavior\" is "
+    "NOT acceptable in mapping or summary_reason. Every assertion must name a "
+    "transaction field AND a rule element.\n\n"
+    "EXAMPLE of acceptable mapping:\n"
+    "  \"FATF R.20 requires that 'financial institutions should report suspicious "
+    "transactions ... regardless of the amount.' This transaction triggers R.20 "
+    "because transfer_count_24h=7 near the USD 10,000 reporting threshold "
+    "satisfies the 'unusual pattern' condition.\"\n\n"
+    "confidence MUST be a float between 0.00 and 1.00 representing the model's "
+    "certainty in its classification. Do NOT return a label (high/medium/low).\n\n"
+    "FATF chunks are provided as supporting context — cite FATF inside a "
+    "regulator's decision when relevant but do NOT produce a top-level FATF "
+    "decision.\n\n"
+    "CALIBRATION GUIDANCE (guidance, not pinning — score from the evidence):\n"
+    "- When structuring indicators are present between FATF-compliant "
+    "jurisdictions (sub-threshold amounts, high 24h velocity, repeated similar "
+    "amounts) and no aggravating factor is present, the FLAG range (40-65) is "
+    "typically appropriate.\n"
+    "- When a sanctioned jurisdiction (OFAC/UN lists, e.g. IR, KP, SY, CU, SD, "
+    "MM, BY) is involved on either side of the transfer, the BLOCK range "
+    "(66-100) is typically appropriate for regulators that enforce sanctions "
+    "regimes.\n"
+    "- These are reference bands. Score from the transaction evidence and the "
+    "regulatory clauses you cite, not from these prompts alone."
 )
 
 FALLBACK_RESPONSE = json.dumps(

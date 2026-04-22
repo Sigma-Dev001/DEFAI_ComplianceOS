@@ -14,6 +14,7 @@ from db.session import get_db
 from engine.claude import call_claude
 from engine.decision import parse_claude_output
 from engine.retrieval import retrieve
+from screening.ofac import screen_wallet
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +42,14 @@ class CheckRequest(BaseModel):
     avg_transfer_amount: Optional[float] = Field(
         None, description="Average transfer amount in last 24 hours"
     )
+    tx_hash: Optional[str] = Field(None, description="On-chain transaction hash")
+    chain: Optional[str] = Field(None, description="Chain name e.g. bitcoin, ethereum, tron")
+    from_address: Optional[str] = Field(None, description="Sender wallet address")
+    to_address: Optional[str] = Field(None, description="Receiver wallet address")
+    contract_address: Optional[str] = Field(
+        None, description="Contract address if token transfer"
+    )
+    token_symbol: Optional[str] = Field(None, description="Token symbol e.g. USDT, USDC")
 
     @model_validator(mode="after")
     def _default_avg_transfer_amount(self) -> "CheckRequest":
@@ -65,6 +74,76 @@ async def check_transaction(
     transaction = payload.model_dump()
 
     try:
+        sender_screen = await screen_wallet(payload.from_address)
+        receiver_screen = await screen_wallet(payload.to_address)
+
+        if sender_screen["hit"] or receiver_screen["hit"]:
+            hit = sender_screen if sender_screen["hit"] else receiver_screen
+            reason = (
+                f"Wallet address {hit['address']} matches OFAC SDN entry: "
+                f"{hit['match']}"
+            )
+            processing_ms = int((time.monotonic() - start) * 1000)
+            ofac_decisions = {
+                reg: {"decision": "BLOCK", "score": 100, "citations": []}
+                for reg in ("vara", "mas", "fca")
+            }
+            response = {
+                "decision": "BLOCK",
+                "score": 100,
+                "confidence": 1.0,
+                "confidence_label": "high",
+                "reason": reason,
+                "decisions": ofac_decisions,
+                "rule_references": [],
+                "recommended_action": (
+                    "Block transaction immediately — OFAC SDN wallet match"
+                ),
+                "trace_id": payload.transaction_id,
+                "processing_ms": processing_ms,
+            }
+            try:
+                db.add(
+                    Transaction(
+                        transaction_id=payload.transaction_id,
+                        request_payload=transaction,
+                        claude_raw_output="[OFAC SDN bypass — Claude not called]",
+                        decision="BLOCK",
+                        score=100,
+                        confidence=1.0,
+                        reason=reason,
+                        rule_references=[],
+                        recommended_action=response["recommended_action"],
+                        decisions=ofac_decisions,
+                        reg_snapshot_id=None,
+                        processing_ms=processing_ms,
+                    )
+                )
+                await db.commit()
+            except Exception:
+                logger.exception("Audit log write failed (OFAC bypass)")
+                await db.rollback()
+                return JSONResponse(
+                    status_code=503,
+                    content={"error": "Audit log unavailable"},
+                )
+
+            await send_alert(
+                decision="BLOCK",
+                score=100,
+                confidence="high",
+                reason=reason,
+                trace_id=payload.transaction_id,
+                rule_references=[],
+            )
+            return response
+
+        transaction["wallet_screening"] = {
+            "from_address": sender_screen,
+            "to_address": receiver_screen,
+            "status": "clean",
+        }
+
         try:
             chunks_by_jur = await retrieve(transaction)
         except Exception:

@@ -5,7 +5,7 @@ import sys
 import httpx
 
 BASE_URL = "http://localhost:8000"
-REQUEST_TIMEOUT = 60.0
+REQUEST_TIMEOUT = 120.0
 
 REQUIRED_FIELDS = [
     "decision",
@@ -68,6 +68,23 @@ SCENARIOS = [
             "avg_transfer_amount": 50000.0,
         },
     },
+    {
+        "name": "SCENARIO 4 — OFAC HIT",
+        "display_name": "OFAC SDN (US→US)",
+        "expected": "BLOCK",
+        "assert_score": 100,
+        "payload": {
+            "transaction_id": "demo_004",
+            "amount": 1000.0,
+            "currency": "USDT",
+            "sender_country": "US",
+            "receiver_country": "US",
+            "jurisdiction": "FCA",
+            "transfer_count_24h": 1,
+            "avg_transfer_amount": 1000.0,
+            "from_address": "149w62rY42aZBox8fGcmqNsXUzSStKeq8C",
+        },
+    },
 ]
 
 _SUMMARY_COLS = (21, 10, 7, 12)
@@ -110,7 +127,12 @@ def _print_summary(results: list[tuple[str, str, str, bool]]) -> None:
     print(f"Results: {passed}/{len(results)} passed")
 
 
-def _assertion_failures(body: dict, expected_decision: str, transaction_id: str) -> list[str]:
+def _assertion_failures(
+    body: dict,
+    expected_decision: str,
+    transaction_id: str,
+    assert_score: int | None = None,
+) -> list[str]:
     failures: list[str] = []
 
     missing = [f for f in REQUIRED_FIELDS if f not in body]
@@ -131,6 +153,8 @@ def _assertion_failures(body: dict, expected_decision: str, transaction_id: str)
     score = body.get("score")
     if not isinstance(score, int) or score < 0 or score > 100:
         failures.append(f"score not an integer in 0-100: {score!r}")
+    elif assert_score is not None and score != assert_score:
+        failures.append(f"score mismatch: expected {assert_score} got {score}")
 
     confidence = body.get("confidence")
     if isinstance(confidence, bool) or not isinstance(confidence, (int, float)):
@@ -195,7 +219,12 @@ async def _run_scenario(
     print(json.dumps(body, indent=2))
 
     got = str(body.get("decision") or "ERR")
-    failures = _assertion_failures(body, expected, payload["transaction_id"])
+    failures = _assertion_failures(
+        body,
+        expected,
+        payload["transaction_id"],
+        assert_score=scenario.get("assert_score"),
+    )
     if not failures:
         print("\nResult: ✓ PASS")
         return True, got

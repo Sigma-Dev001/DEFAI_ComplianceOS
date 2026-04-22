@@ -352,6 +352,7 @@ async def run_scenarios(verbose: bool = False) -> int:
             )
 
     _print_summary(results)
+    await asyncio.sleep(2)
     return 0 if all(ok for _, _, _, ok in results) else 1
 
 

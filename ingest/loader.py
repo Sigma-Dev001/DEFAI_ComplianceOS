@@ -1,4 +1,5 @@
 import asyncio
+import hashlib
 import re
 from pathlib import Path
 
@@ -8,7 +9,7 @@ load_dotenv()
 
 import PyPDF2
 from sentence_transformers import SentenceTransformer
-from sqlalchemy import select
+from sqlalchemy import select, text
 
 from db.models import RegulatoryChunk
 from db.session import AsyncSessionLocal, create_tables
@@ -38,6 +39,14 @@ def extract_text(path: Path) -> str:
     for page in reader.pages:
         pages.append(page.extract_text() or "")
     return "\n".join(pages)
+
+
+def file_content_hash(path: Path) -> str:
+    hasher = hashlib.sha256()
+    with path.open("rb") as f:
+        for block in iter(lambda: f.read(1 << 20), b""):
+            hasher.update(block)
+    return hasher.hexdigest()
 
 
 def split_sentences(text: str) -> list[str]:
@@ -80,6 +89,7 @@ async def existing_chunk_indices(session, source_document: str) -> set[int]:
 async def ingest_file(path: Path, model: SentenceTransformer) -> None:
     filename = path.name
     jurisdiction = detect_jurisdiction(filename)
+    doc_hash = file_content_hash(path)
     text = extract_text(path)
     chunks = chunk_text(text, model.tokenizer)
     total = len(chunks)
@@ -104,11 +114,26 @@ async def ingest_file(path: Path, model: SentenceTransformer) -> None:
                     content=content,
                     embedding=embedding,
                     jurisdiction=jurisdiction,
+                    document_hash=doc_hash,
                 )
             )
             new_rows += 1
         await session.commit()
-        print(f"  {filename}: {new_rows} new chunks committed ({jurisdiction})")
+        print(f"  {filename}: {new_rows} new chunks committed ({jurisdiction}) hash={doc_hash[:16]}")
+
+
+async def backfill_document_hashes(pdfs: list[Path]) -> None:
+    async with AsyncSessionLocal() as session:
+        for path in pdfs:
+            doc_hash = file_content_hash(path)
+            await session.execute(
+                text(
+                    "UPDATE regulatory_chunks SET document_hash = :h "
+                    "WHERE source_document = :f AND document_hash IS NULL"
+                ),
+                {"h": doc_hash, "f": path.name},
+            )
+        await session.commit()
 
 
 async def main() -> None:
@@ -121,6 +146,9 @@ async def main() -> None:
     if not pdfs:
         print(f"No PDFs found in {DOCS_DIR}")
         return
+
+    await backfill_document_hashes(pdfs)
+    print(f"Backfilled document_hash for {len(pdfs)} existing PDFs")
 
     for path in pdfs:
         await ingest_file(path, model)

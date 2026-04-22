@@ -1,3 +1,4 @@
+import hashlib
 import json
 import os
 
@@ -67,6 +68,8 @@ SYSTEM_PROMPT = (
     "- These are reference bands. Score from the transaction evidence and the "
     "regulatory clauses you cite, not from these prompts alone."
 )
+
+SYSTEM_PROMPT_HASH = hashlib.sha256(SYSTEM_PROMPT.encode("utf-8")).hexdigest()[:16]
 
 FALLBACK_RESPONSE = json.dumps(
     {

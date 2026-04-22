@@ -53,6 +53,7 @@ async def retrieve(
                     RegulatoryChunk.content,
                     RegulatoryChunk.source_document,
                     RegulatoryChunk.jurisdiction,
+                    RegulatoryChunk.document_hash,
                     RegulatoryChunk.created_at,
                 )
                 .where(RegulatoryChunk.jurisdiction == jur)
@@ -65,6 +66,7 @@ async def retrieve(
                     "content": row.content,
                     "source_document": row.source_document,
                     "jurisdiction": row.jurisdiction,
+                    "document_hash": row.document_hash,
                     "ingested_at": row.created_at.isoformat() if row.created_at else None,
                 }
                 for row in result.all()

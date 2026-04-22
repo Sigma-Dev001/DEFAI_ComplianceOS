@@ -105,21 +105,22 @@ def _normalize_citations(raw_list) -> list[dict]:
 def _snapshot_hash(chunks_by_jur: dict[str, list[dict]] | None) -> str | None:
     if not chunks_by_jur:
         return None
-    tuples: list[tuple[str, str, str]] = []
+    doc_hashes: set[tuple[str, str]] = set()
     for jur, chunks in chunks_by_jur.items():
         for chunk in chunks or []:
-            tuples.append(
+            doc_hash = chunk.get("document_hash")
+            if not doc_hash:
+                continue
+            doc_hashes.add(
                 (
                     str(chunk.get("jurisdiction", jur) or ""),
-                    str(chunk.get("source_document", "") or ""),
-                    str(chunk.get("ingested_at", "") or ""),
+                    str(doc_hash),
                 )
             )
-    if not tuples:
+    if not doc_hashes:
         return None
-    tuples.sort()
     hasher = hashlib.sha256()
-    for t in tuples:
+    for t in sorted(doc_hashes):
         hasher.update(("|".join(t) + "\n").encode("utf-8"))
     return hasher.hexdigest()[:16]
 
@@ -139,6 +140,8 @@ def _parse_failure(
         "trace_id": transaction_id,
         "processing_ms": processing_ms,
         "reg_snapshot_id": reg_snapshot_id,
+        "override_applied": False,
+        "override_reason": None,
     }
 
 
@@ -165,21 +168,30 @@ def parse_claude_output(
     max_score = 0
     has_block = False
     has_flag = False
+    override_applied = False
+    override_reasons: list[str] = []
 
     for reg_key, reg_body in data["decisions"].items():
         if not isinstance(reg_body, dict):
             continue
         score = _clamp_score(reg_body.get("score"))
-        reg_decision = _score_to_decision(score)
+        raw_decision = _score_to_decision(score)
+        reg_decision = raw_decision
 
         if (
-            reg_decision == "BLOCK"
+            raw_decision == "BLOCK"
             and score < 85
             and not sanctions_hit
             and sender is not None
             and receiver is not None
         ):
             reg_decision = "FLAG"
+            override_applied = True
+            override_reasons.append(
+                f"{str(reg_key).lower()}: BLOCK(score={score}) downgraded to FLAG — "
+                f"no sanctioned jurisdiction involved "
+                f"(sender={sender}, receiver={receiver}) and score<85"
+            )
 
         citations = _normalize_citations(reg_body.get("citations"))
         processed[str(reg_key).lower()] = {
@@ -235,4 +247,6 @@ def parse_claude_output(
         "trace_id": transaction_id,
         "processing_ms": processing_ms,
         "reg_snapshot_id": reg_snapshot_id,
+        "override_applied": override_applied,
+        "override_reason": "; ".join(override_reasons) if override_reasons else None,
     }

@@ -15,15 +15,19 @@
 Built for Series A–B digital asset funds operating across UAE, Singapore,
 and UK. Your compliance stack was built for one regulator. DEFAI ComplianceOS
 screens every transaction against VARA, MAS, and FCA simultaneously and
-returns per-regulator decisions with clause-level citations in under 2 seconds.
+returns per-regulator decisions with clause-level citations in a single API
+call: sub-second on OFAC SDN hits, 15–25s on full Opus 4.7 reasoning over
+retrieved regulatory context.
 
 ## What it does
 
 - Per-regulator PASS/FLAG/BLOCK with clause-level citations (VARA, MAS, FCA, FATF)
-- OFAC SDN wallet screening before Claude is called
-- Full audit trail: `claude_raw_output` + regulatory snapshot ID per decision
-- Sub-2s latency, async FastAPI, PostgreSQL audit log
+- OFAC SDN wallet screening before Claude is called (sub-second bypass on hit)
+- Full audit trail: `claude_raw_output`, content-hashed regulatory snapshot ID, system-prompt hash, override logging
+- Async FastAPI, PostgreSQL audit log, fire-and-forget alert delivery off the request path
 - `/audit`, `/trace/{id}`, `/health`, Swagger at `/docs`
+
+**Latency:** OFAC SDN bypass returns in under a second. Full Opus 4.7 reasoning runs 15–25s including per-jurisdiction retrieval and structured citation generation.
 
 ## Architecture
 

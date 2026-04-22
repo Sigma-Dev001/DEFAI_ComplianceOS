@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import time
 from typing import Optional
@@ -11,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from alerts.telegram import send_alert
 from db.models import Transaction
 from db.session import get_db
-from engine.claude import call_claude
+from engine.claude import SYSTEM_PROMPT_HASH, call_claude
 from engine.decision import parse_claude_output
 from engine.retrieval import retrieve
 from screening.ofac import screen_wallet
@@ -19,6 +20,16 @@ from screening.ofac import screen_wallet
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+
+def _fire_and_forget_alert(**kwargs) -> None:
+    async def _runner() -> None:
+        try:
+            await send_alert(**kwargs)
+        except Exception:
+            logger.warning("Background Telegram alert failed", exc_info=True)
+
+    asyncio.create_task(_runner())
 
 
 class CheckRequest(BaseModel):
@@ -116,6 +127,9 @@ async def check_transaction(
                         recommended_action=response["recommended_action"],
                         decisions=ofac_decisions,
                         reg_snapshot_id=None,
+                        system_prompt_hash=SYSTEM_PROMPT_HASH,
+                        override_applied=False,
+                        override_reason=None,
                         processing_ms=processing_ms,
                     )
                 )
@@ -128,7 +142,7 @@ async def check_transaction(
                     content={"error": "Audit log unavailable"},
                 )
 
-            await send_alert(
+            _fire_and_forget_alert(
                 decision="BLOCK",
                 score=100,
                 confidence="high",
@@ -178,6 +192,9 @@ async def check_transaction(
                     recommended_action=response["recommended_action"],
                     decisions=response["decisions"],
                     reg_snapshot_id=response.get("reg_snapshot_id"),
+                    system_prompt_hash=SYSTEM_PROMPT_HASH,
+                    override_applied=bool(response.get("override_applied")),
+                    override_reason=response.get("override_reason"),
                     processing_ms=pre_commit_ms,
                 )
             )
@@ -191,10 +208,12 @@ async def check_transaction(
             )
 
         response.pop("reg_snapshot_id", None)
+        response.pop("override_applied", None)
+        response.pop("override_reason", None)
         response["processing_ms"] = int((time.monotonic() - start) * 1000)
 
         if response["decision"] in ("FLAG", "BLOCK"):
-            await send_alert(
+            _fire_and_forget_alert(
                 decision=response["decision"],
                 score=response["score"],
                 confidence=response["confidence_label"],
@@ -281,6 +300,9 @@ async def get_trace(
         "recommended_action": row.recommended_action,
         "decisions": row.decisions,
         "reg_snapshot_id": row.reg_snapshot_id,
+        "system_prompt_hash": row.system_prompt_hash,
+        "override_applied": row.override_applied,
+        "override_reason": row.override_reason,
         "processing_ms": row.processing_ms,
         "created_at": row.created_at.isoformat() if row.created_at else None,
     }

@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import Optional
 
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import DateTime, Float, Integer, String, Text, func
+from sqlalchemy import Boolean, DateTime, Float, Integer, String, Text, func
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, declarative_base, mapped_column
 
@@ -27,6 +27,11 @@ class Transaction(Base):
     recommended_action: Mapped[str] = mapped_column(String, nullable=False)
     decisions: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
     reg_snapshot_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    system_prompt_hash: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    override_applied: Mapped[Optional[bool]] = mapped_column(
+        Boolean, nullable=True, default=False
+    )
+    override_reason: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     processing_ms: Mapped[int] = mapped_column(Integer, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
@@ -44,6 +49,7 @@ class RegulatoryChunk(Base):
     content: Mapped[str] = mapped_column(Text, nullable=False)
     embedding: Mapped[list[float]] = mapped_column(Vector(384), nullable=False)
     jurisdiction: Mapped[str] = mapped_column(String, nullable=False, index=True)
+    document_hash: Mapped[Optional[str]] = mapped_column(String, nullable=True, index=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

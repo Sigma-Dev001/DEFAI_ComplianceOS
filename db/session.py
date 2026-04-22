@@ -36,6 +36,11 @@ async def get_db():
 _MIGRATIONS = [
     "ALTER TABLE transactions ADD COLUMN IF NOT EXISTS decisions JSONB",
     "ALTER TABLE transactions ADD COLUMN IF NOT EXISTS reg_snapshot_id VARCHAR",
+    "ALTER TABLE transactions ADD COLUMN IF NOT EXISTS system_prompt_hash VARCHAR",
+    "ALTER TABLE transactions ADD COLUMN IF NOT EXISTS override_applied BOOLEAN",
+    "ALTER TABLE transactions ADD COLUMN IF NOT EXISTS override_reason TEXT",
+    "ALTER TABLE regulatory_chunks ADD COLUMN IF NOT EXISTS document_hash VARCHAR",
+    "CREATE INDEX IF NOT EXISTS ix_regulatory_chunks_document_hash ON regulatory_chunks(document_hash)",
     """
     DO $$
     BEGIN

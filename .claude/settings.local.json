@@ -25,7 +25,9 @@
       "Bash(rm -f MAS_PSN02_AML_CFT.pdf)",
       "Bash(curl -sSL -A 'Mozilla/5.0 \\(X11; Linux x86_64\\) AppleWebKit/537.36 \\(KHTML, like Gecko\\) Chrome/120.0 Safari/537.36' -H 'Accept: application/pdf,*/*' -o MAS_PSN02_AML_CFT.pdf https://www.mas.gov.sg/-/media/mas-media-library/regulation/notices/amld/psn02-aml-cft-notice---digital-payment-token-service/notice-psn02-dated-2-april-2024.pdf)",
       "Bash(docker compose *)",
-      "Bash(PGPASSWORD=devpassword psql *)"
+      "Bash(PGPASSWORD=devpassword psql *)",
+      "Bash(git checkout *)",
+      "Bash(git merge *)"
     ]
   }
 }

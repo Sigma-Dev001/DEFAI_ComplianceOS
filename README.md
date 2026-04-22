@@ -1,6 +1,8 @@
 # DEFAI ComplianceOS
 
-> Explainable AML/CFT compliance middleware — POST a transaction, get PASS/FLAG/BLOCK with regulatory citations in under 2 seconds.
+> We automate cross-jurisdictional compliance screening for digital asset
+> transactions — so your team doesn't manually reconcile VARA, MAS, and FCA
+> requirements every time value moves between networks.
 
 ![Python](https://img.shields.io/badge/Python-3.12-blue)
 ![FastAPI](https://img.shields.io/badge/FastAPI-async-green)
@@ -8,13 +10,20 @@
 ![pgvector](https://img.shields.io/badge/PostgreSQL-pgvector-blue)
 ![License](https://img.shields.io/badge/License-MIT-green)
 
-## The problem
+## Who it's for
 
-A compliance officer at a mid-market crypto exchange reviews 10,000 transactions per day with a 3-person team. Industry false positive rates average 95% — meaning 9,500 alerts per day are noise. Each missed flag risks fines averaging $2M. Existing tools score risk but cannot explain why in regulatory language a compliance officer can cite to a regulator.
+Built for Series A–B digital asset funds operating across UAE, Singapore,
+and UK. Your compliance stack was built for one regulator. DEFAI ComplianceOS
+screens every transaction against VARA, MAS, and FCA simultaneously and
+returns per-regulator decisions with clause-level citations in under 2 seconds.
 
-## The solution
+## What it does
 
-ComplianceOS sits in front of settlement. It calls Claude Opus 4.7, which reasons against embedded FATF, MiCA, FCA, and MAS regulatory documents and returns a structured decision with the exact rule references that triggered it — in under 2 seconds.
+- Per-regulator PASS/FLAG/BLOCK with clause-level citations (VARA, MAS, FCA, FATF)
+- OFAC SDN wallet screening before Claude is called
+- Full audit trail: `claude_raw_output` + regulatory snapshot ID per decision
+- Sub-2s latency, async FastAPI, PostgreSQL audit log
+- `/audit`, `/trace/{id}`, `/health`, Swagger at `/docs`
 
 ## Architecture
 
@@ -27,13 +36,17 @@ ComplianceOS sits in front of settlement. It calls Claude Opus 4.7, which reason
   └────────┬─────────┘
            │
            ▼
-   pgvector retrieval   (top-5 regulatory chunks, cosine similarity)
+   OFAC SDN screen      (from_address / to_address — bypass Claude on hit)
            │
            ▼
-   Claude Opus 4.7      (async SDK, reasoning over 3 regulatory PDFs)
+   pgvector retrieval   (top-3 chunks per jurisdiction, cosine similarity)
            │
            ▼
-   decision engine      (parse + score-to-decision + sanctions override)
+   Claude Opus 4.7      (async SDK, per-regulator JSON reasoning)
+           │
+           ▼
+   decision engine      (per-regulator score, worst-case aggregate,
+                         sanctions override, structured citations)
            │
            ├────────────▶  audit log       (Postgres, JSONB request + raw reasoning)
            │
@@ -43,26 +56,20 @@ ComplianceOS sits in front of settlement. It calls Claude Opus 4.7, which reason
    JSON response contract
 ```
 
+Supported jurisdictions: **VARA, MAS, FCA, FATF**.
+
 ## Demo scenarios
 
 | # | Input | Decision | Score |
 |---|---|---|---|
-| 1 | SG → UK, $2,500 USD, 1 transfer / 24h | **PASS** | 15 |
-| 2 | AE → SG, 7 × $9,800 USD / 24h (structuring) | **FLAG** | 55 |
-| 3 | IR → UK, $50,000 USDT (sanctions) | **BLOCK** | 95 |
+| 1 | SG → UK, $2,500 USD, 1 transfer / 24h | **PASS** | low |
+| 2 | AE → SG, 7 × $9,800 USD / 24h (structuring) | **FLAG** | mid |
+| 3 | IR → UK, $50,000 USDT (sanctions) | **BLOCK** | high |
+| 4 | US → US, $1,000 USDT, OFAC SDN wallet `149w62rY…StKeq8C` | **BLOCK** | 100 |
 
-Example `rule_references` from Scenario 3:
-
-```json
-[
-  "FATF R.20",
-  "FATF R.16",
-  "OFAC SDN",
-  "UK POCA 2002 s.330",
-  "UK Money Laundering Regulations 2017",
-  "FATF High-Risk Jurisdictions Call for Action"
-]
-```
+Scenario 4 bypasses Claude entirely — the OFAC SDN match returns
+`decision=BLOCK, score=100, confidence=1.0` with the matched SDN entry name
+in the `reason` field.
 
 ## How to run
 
@@ -88,10 +95,11 @@ python3 tests/scenarios.py
 
 ## Endpoints
 
-- `POST /check` — score a transaction and return PASS/FLAG/BLOCK with citations
-- `GET /audit` — last 20 decisions (trace_id, decision, score, confidence, reason, rules, processing_ms, created_at)
-- `GET /trace/{transaction_id}` — full audit row for a single transaction including Claude's raw reasoning
-- `GET /health` — liveness probe
+- `POST /check` — score a transaction against VARA, MAS, and FCA; returns per-regulator decisions + aggregate PASS/FLAG/BLOCK with clause-level citations
+- `GET /audit` — last 20 decisions (trace_id, decision, score, confidence, reason, rule_references, processing_ms, created_at)
+- `GET /trace/{transaction_id}` — full audit row including Claude's raw reasoning and regulatory snapshot ID
+- `GET /health` — liveness probe + regulatory_docs_loaded + transactions_processed
+- `GET /docs` — Swagger UI
 
 ## Tech stack
 
@@ -100,14 +108,19 @@ python3 tests/scenarios.py
 - PostgreSQL 16 + pgvector — vector store + audit log
 - sentence-transformers all-MiniLM-L6-v2 — local embeddings
 - python-telegram-bot v22 — real-time FLAG/BLOCK alerts
+- OFAC SDN XML — daily-refreshed crypto wallet screening
 
 ## Why Opus 4.7
 
-The value isn't classification — a rules engine can classify. The value is the reasoning chain: Opus reads the actual regulatory text, identifies which clause applies, and explains why in language a compliance officer can use in a regulatory filing. That explanation is the audit trail.
+The value isn't classification — a rules engine can classify. The value is
+the reasoning chain: Opus reads the actual regulatory text, identifies
+which clause applies per regulator, and explains why in language a
+compliance officer can use in a regulatory filing. That explanation is the
+audit trail.
 
 ## Judging criteria
 
-- **Impact (30%)** — $61B annual AML compliance spend. 95% false positive rate is an industry-wide problem.
-- **Demo (25%)** — Three live scenarios: PASS, FLAG, BLOCK. Telegram alert fires in real time. Full audit trail queryable via `GET /trace/{id}`.
-- **Opus 4.7 use (25%)** — RAG over 3 regulatory PDFs. Chain-of-thought scoring. Jurisdiction-aware decision routing. Degraded fallback on API failure.
-- **Depth (20%)** — Confidence calibration. Sanctioned country override. RULES regex hardened against model meta-text. Structured audit log with `claude_raw_output` preserved.
+- **Impact (30%)** — Series A–B digital asset funds operating across UAE/SG/UK pay six-figure annual fees per jurisdiction for siloed compliance tooling. This system returns per-regulator decisions in one call.
+- **Demo (25%)** — Four live scenarios: PASS, FLAG, BLOCK, OFAC-BLOCK. Telegram alert fires in real time. Full audit trail queryable via `GET /trace/{id}`.
+- **Opus 4.7 use (25%)** — RAG over VARA/MAS/FCA/FATF regulatory PDFs. Per-regulator JSON reasoning with verbatim clause quotes and transaction-field-to-rule-element mapping. Degraded fallback on API failure.
+- **Depth (20%)** — Float confidence calibration with derived label. Sanctioned-country override. OFAC SDN pre-screen. Regulatory snapshot hash per decision. Structured audit log with `claude_raw_output` preserved.

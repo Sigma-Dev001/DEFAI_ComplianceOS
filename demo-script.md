@@ -1,94 +1,81 @@
 # DEFAI ComplianceOS — Demo Video Script
 
-**Target length:** 2:30–3:00
-**Cadence:** ~145 wpm
-**Voiceover:** Samuel, first-person, conversational
+**Target length:** 2:55–3:00
+**Cadence:** ~140 wpm, conversational
+**Voiceover:** Samuel, first-person
+
+Em-dashes are half-beat pauses. Paragraph breaks are full-beat pauses — breathe and let it land.
 
 ---
 
 ## 0:00 — Opening
 
-[00:00] [SCREEN: plain title card — "DEFAI ComplianceOS" on dark background]
-VO: "Hi, I'm Samuel. I'm a Nigerian student, and for the last year I've been watching African and Gulf fintechs try to move money across borders."
+[SCREEN: title card "DEFAI ComplianceOS" on dark background, then fades to a terminal prompt]
 
-[00:08] [SCREEN: title card fades to a terminal prompt, cursor blinking]
-VO: "One missed flag on a cross-jurisdictional transfer can cost a fintech its license. So I built this."
+VO: "I'm Samuel — a student from Nigeria. For the past year I've been watching fintechs across Africa and the Gulf try to move money across borders. It is brutal. One missed flag on the wrong transfer, and a team can lose its license. So I built this."
 
 ---
 
-## 0:20 — Problem frame
+## 0:22 — The wedge
 
-[00:20] [SCREEN: split view — left side shows a Chainalysis-style wallet report with "risk score: 87"; right side shows a blank Word doc titled "VARA mapping.docx"]
-VO: "Here's the gap. Existing tools tell you a wallet has a risk score of 87. They do not tell you which clause of VARA, MAS, or FCA that score maps to."
+[SCREEN: split view — left side a Chainalysis-style wallet report with "risk score: 87"; right side a blank Word doc titled "VARA mapping.docx"; then cross-fades to a compliance officer's cursor scrolling through a VARA Rulebook PDF]
 
-[00:33] [SCREEN: the blank Word doc fills with a compliance officer's cursor scrolling through a PDF of the VARA Rulebook]
-VO: "Today, a compliance officer does that mapping by hand — reading the rulebook, finding the clause, writing the justification. That's the wedge. That's what I automated."
+VO: "Here's what bothered me. Existing tools will tell you a wallet has a risk score of 87. They will not tell you which clause of VARA, or MAS, or FCA that score actually maps to. So somewhere, a compliance officer is still sitting there, reading the rulebook by hand, trying to turn a number into a filing. That mapping — that's the wedge. That's what I built."
 
 ---
 
-## 0:45 — Scenario 1: Clean (PASS)
+## 0:50 — Scenario 1: Clean (PASS)
 
-[00:45] [SCREEN: terminal running `python3 tests/scenarios.py --verbose`, scrolled to "SCENARIO 1 — CLEAN / Clean (SG→UK)"]
-VO: "Four live scenarios, hitting the real API. First one: two-and-a-half thousand US dollars, Singapore to the UK, one transfer in twenty-four hours."
+[SCREEN: terminal running `python3 tests/scenarios.py --verbose`, scrolled to "SCENARIO 1 — CLEAN / Clean (SG→UK)" output block — Decision: PASS, Score: 20/100, Confidence 0.90 (high), Processing 22,605 ms; VARA PASS 15, MAS PASS 20, FCA PASS 15]
 
-[00:56] [SCREEN: the scenario 1 output block — Decision: PASS, Score: 20/100, Confidence 0.90 (high), Processing 22,605 ms; VARA PASS 15, MAS PASS 20, FCA PASS 15]
-VO: "PASS. Score twenty out of a hundred. Twenty-two seconds, because Claude Opus reads the actual regulatory text for each of VARA, MAS, and FCA before it decides. No regulator flagged it."
+VO: "Let me show you. Four scenarios against the live endpoint. First one's clean — two-and-a-half thousand dollars, Singapore to the UK. Comes back PASS, score 20. Takes about 22 seconds, because Claude Opus is actually reading the regulatory text for each of the three jurisdictions before it decides. No regulator flagged it. Fine — move on."
 
 ---
 
-## 1:13 — Scenario 2: Structuring (FLAG)
+## 1:15 — Scenario 2: Structuring (FLAG)
 
-[01:13] [SCREEN: terminal scrolls to "SCENARIO 2 — STRUCTURING / Structuring (AE→SG)"]
-VO: "Second one. UAE to Singapore. Seven transfers, each ninety-eight hundred dollars, in twenty-four hours. Classic sub-threshold structuring."
+[SCREEN: terminal scrolls to "SCENARIO 2 — STRUCTURING / Structuring (AE→SG)" — Decision: FLAG, Score 55/100, Confidence 0.82 (high); per-regulator VARA FLAG 55, MAS FLAG 55, FCA FLAG 50; then verbose JSON scrolls to the rule_references block highlighting VARA Part III Section G, MAS Paragraph 13.8, FATF Recommendation 16, FCA FCG Glossary — Occasional Transaction / Linked Transactions]
 
-[01:24] [SCREEN: scenario 2 output — Decision: FLAG, Score 55/100, Confidence 0.82 (high); per-regulator VARA FLAG 55, MAS FLAG 55, FCA FLAG 50]
-VO: "FLAG. Fifty-five. Three regulators scored it independently — VARA, MAS, FCA — plus FATF as supporting context. Four clause-level citations in total."
-
-[01:38] [SCREEN: the verbose JSON scrolls to the rule_references block, highlighting VARA Part III Section G, MAS Paragraph 13.8, FATF Recommendation 16, and FCA FCG Glossary — Occasional Transaction / Linked Transactions]
-VO: "VARA Part III Section G. MAS Paragraph 13.8. FATF Recommendation 16. FCA's linked-transactions clause. That's the mapping a human would have spent an hour writing."
+VO: "Second one is more interesting. UAE to Singapore — seven transfers, ninety-eight hundred dollars each, all inside twenty-four hours. Classic sub-threshold structuring. Comes back FLAG, score 55. And this is where the per-regulator breakdown matters. VARA, MAS, and FCA each scored it independently — with FATF as supporting context. Four clause-level citations right there. That's the mapping a compliance officer would have spent an hour writing by hand."
 
 ---
 
-## 1:55 — Scenario 3: Sanctions (BLOCK)
+## 1:50 — Scenario 3: Sanctions (BLOCK — money shot)
 
-[01:55] [SCREEN: terminal scrolls to "SCENARIO 3 — SANCTIONS / Sanctions (IR→UK)"]
-VO: "Third. Fifty thousand USDT, Iran to the UK."
+[SCREEN: terminal scrolls to "SCENARIO 3 — SANCTIONS / Sanctions (IR→UK)" — Decision: BLOCK, Score 88/100, Confidence 0.95, Processing 27,106 ms; VARA BLOCK 85, MAS BLOCK 82, FCA BLOCK 88; then verbose JSON zooms to a single FCA citation showing the verbatim quote_excerpt, effective_date, and mapping fields]
 
-[02:01] [SCREEN: scenario 3 output — Decision: BLOCK, Score 88/100, Confidence 0.95, Processing 27,106 ms; VARA BLOCK 85, MAS BLOCK 82, FCA BLOCK 88]
-VO: "BLOCK. Eighty-eight."
-
-[02:07] [SCREEN: verbose JSON highlights the FCA citation for FCG 3.2.15 — the verbatim quote_excerpt and mapping fields are visible]
-VO: "This is the money shot. Every citation carries the verbatim regulatory quote, the effective date, and a one-sentence mapping from a transaction field to the rule element it satisfies. That text is what ends up in a regulatory filing."
+VO: "Third. Fifty thousand USDT, Iran to the UK. BLOCK — score 88. And this is the one I'm most proud of. Every citation carries the verbatim regulatory quote, the effective date, and a one-sentence mapping from a transaction field to the rule element it satisfies. That text right there is what ends up in a regulatory filing."
 
 ---
 
-## 2:23 — Scenario 4: OFAC (BLOCK, deterministic)
+## 2:20 — Scenario 4: OFAC (BLOCK, deterministic)
 
-[02:23] [SCREEN: terminal scrolls to "SCENARIO 4 — OFAC HIT / OFAC SDN (US→US)"]
-VO: "Fourth. A wallet address that's on the OFAC SDN list."
+[SCREEN: terminal scrolls to "SCENARIO 4 — OFAC HIT / OFAC SDN (US→US)" — Decision: BLOCK, Score 100/100, Confidence 1.00, Processing: 3 ms; reason line: "Wallet address 149w62rY42aZBox8fGcmqNsXUzSStKeq8C matches OFAC SDN entry: Ali KHORASHADIZADEH"]
 
-[02:28] [SCREEN: scenario 4 output — Decision: BLOCK, Score 100/100, Confidence 1.00, Processing: 3 ms; reason line: "Wallet address 149w62rY42aZBox8fGcmqNsXUzSStKeq8C matches OFAC SDN entry: Ali KHORASHADIZADEH"]
-VO: "Three milliseconds. Claude was never called. Sub-second blocking where the answer is deterministic, full reasoning where it isn't."
+VO: "Last one — a wallet that's on the OFAC SDN list. Three milliseconds. Claude was never called. Sub-second blocking where the answer is deterministic — full reasoning where it isn't."
 
 ---
 
-## 2:38 — Audit trail
+## 2:35 — Audit trail
 
-[02:38] [SCREEN: browser tab open on `http://localhost:8000/trace/demo_003` — pretty-printed JSON; cursor highlights `claude_raw_output`, then `system_prompt_hash`, then `reg_snapshot_id`, then `override_applied` / `override_reason`]
-VO: "Every decision writes a trace. Claude's raw output verbatim. A hash of the system prompt. A content hash of the regulatory documents in play. Override logging. Every decision is legally reconstructable."
+[SCREEN: browser tab open on `http://localhost:8000/trace/demo_003` — pretty-printed JSON; cursor highlights `claude_raw_output`, then `system_prompt_hash`, then `reg_snapshot_id`, then `override_applied` / `override_reason`]
 
----
-
-## 2:55 — Telegram
-
-[02:55] [SCREEN: Telegram Desktop window — three messages visible in order: "⚠️ COMPLIANCE ALERT — FLAG" for demo_002, "🚨 COMPLIANCE ALERT — BLOCK" for demo_003, "🚨 COMPLIANCE ALERT — BLOCK" for demo_004]
-VO: "FLAG and BLOCK decisions fire a Telegram alert off the request path. Three alerts from the run you just watched."
+VO: "Every decision writes a full audit trail. Claude's raw output verbatim. A hash of the system prompt. A content hash of the regulatory documents in play. Override logging. Every decision is legally reconstructable — months later."
 
 ---
 
-## 3:03 — Closing
+## 2:52 — Telegram
 
-[03:03] [SCREEN: closing title card — "ComplianceOS" with the line below]
+[SCREEN: Telegram Desktop window — three messages visible in order: "⚠️ COMPLIANCE ALERT — FLAG" for demo_002, "🚨 COMPLIANCE ALERT — BLOCK" for demo_003, "🚨 COMPLIANCE ALERT — BLOCK" for demo_004]
+
+VO: "And every FLAG or BLOCK fires a Telegram alert — off the request path, never blocking the response. Three alerts from the run you just watched."
+
+---
+
+## 3:00 — Closing
+
+[SCREEN: closing title card — "ComplianceOS" with the closing line]
+
 VO: "Existing tools tell you what to flag. ComplianceOS tells you why."
 
 ---

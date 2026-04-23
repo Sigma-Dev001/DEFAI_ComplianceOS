@@ -2,6 +2,7 @@ import argparse
 import asyncio
 import json
 import sys
+import textwrap
 
 import httpx
 
@@ -154,7 +155,13 @@ def _print_clean_response(body: dict) -> None:
         print(f"  Confidence  : {confidence:.2f} ({confidence_label})")
     else:
         print(f"  Confidence  : {confidence} ({confidence_label})")
-    print(f"  Reason      : {_truncate_one_line(reason)}")
+    reason_text = " ".join((reason or "").split())
+    print(textwrap.fill(
+        reason_text,
+        width=78,
+        initial_indent="  Reason      : ",
+        subsequent_indent=" " * 16,
+    ))
     if isinstance(processing_ms, int):
         print(f"  Processing  : {processing_ms:,} ms")
     else:

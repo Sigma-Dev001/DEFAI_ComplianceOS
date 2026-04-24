@@ -66,9 +66,7 @@ async def send_alert(
     chat_id = os.getenv("TELEGRAM_CHAT_ID")
 
     if not token or not chat_id:
-        logger.warning(
-            "Telegram alert skipped: TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID not set"
-        )
+        logger.info("Telegram not configured — skipping alert for trace %s", trace_id)
         return
 
     message = _format_message(

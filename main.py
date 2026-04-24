@@ -1,7 +1,9 @@
+import logging
 from contextlib import asynccontextmanager
 
 from dotenv import load_dotenv
 
+logging.basicConfig(level=logging.INFO, format="%(levelname)s:%(name)s:%(message)s")
 load_dotenv()
 
 from fastapi import Depends, FastAPI

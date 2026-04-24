@@ -117,7 +117,7 @@ in the `reason` field.
 
 ```bash
 # 1.
-cp .env.example .env    # add ANTHROPIC_API_KEY and TELEGRAM credentials
+cp .env.example .env    # add ANTHROPIC_API_KEY (TELEGRAM_* vars are optional — leave blank to skip alerts)
 
 # 2.
 docker compose up -d

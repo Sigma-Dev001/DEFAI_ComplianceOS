@@ -1,14 +1,35 @@
 # DEFAI ComplianceOS
 
-> We automate cross-jurisdictional compliance screening for digital asset
-> transactions — so your team doesn't manually reconcile VARA, MAS, and FCA
-> requirements every time value moves between networks.
+> **Existing tools tell you what to flag. ComplianceOS tells you why.**
+>
+> Clause-level citations from VARA, MAS, and FCA on every transaction decision —
+> the exact rule text a compliance officer puts in a regulatory filing.
 
 ![Python](https://img.shields.io/badge/Python-3.12-blue)
 ![FastAPI](https://img.shields.io/badge/FastAPI-async-green)
 ![Claude](https://img.shields.io/badge/Claude-Opus%204.7-orange)
 ![pgvector](https://img.shields.io/badge/PostgreSQL-pgvector-blue)
 ![License](https://img.shields.io/badge/License-MIT-green)
+
+## Try it
+
+```bash
+curl -X POST http://localhost:8000/check \
+  -H "Content-Type: application/json" \
+  -d '{
+    "transaction_id": "demo_003",
+    "amount": 50000,
+    "currency": "USDT",
+    "sender_country": "IR",
+    "receiver_country": "UK",
+    "jurisdiction": "FCA",
+    "transfer_count_24h": 1
+  }'
+```
+
+Returns a BLOCK decision with per-regulator scores (VARA/MAS/FCA) and
+rule_references populated with verbatim regulatory quotes — see
+The wedge below.
 
 ## Who it's for
 
@@ -28,6 +49,23 @@ retrieved regulatory context.
 - `/audit`, `/trace/{id}`, `/health`, Swagger at `/docs`
 
 **Latency:** OFAC SDN bypass returns in under a second. Full Opus 4.7 reasoning runs 15–25s including per-jurisdiction retrieval and structured citation generation.
+
+## The wedge: clause-level citations
+
+Every FLAG or BLOCK decision carries one or more citation objects. Each citation names a specific regulatory clause, quotes it verbatim, and maps a transaction field to the element of the rule it satisfies. Example from a Scenario 3 (Iran → UK, $50k USDT) run:
+
+```json
+{
+  "jurisdiction": "FCA",
+  "instrument": "Financial Crime Guide (FCG)",
+  "rule_id": "FCG 7.2.3",
+  "effective_date": "2024-04-30",
+  "quote_excerpt": "Firms must ensure that their systems and controls are adequate to identify transactions with individuals or entities in jurisdictions subject to UK financial sanctions.",
+  "mapping": "This transaction triggers FCG 7.2.3 because sender_country=IR is a UK-sanctioned jurisdiction under the Russia (Sanctions) (EU Exit) Regulations 2019 and equivalent Iran regimes."
+}
+```
+
+This is what a compliance officer would otherwise spend an hour drafting by hand against the rulebook PDF — and what they'd get fined for getting wrong.
 
 ## Architecture
 

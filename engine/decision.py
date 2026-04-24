@@ -11,9 +11,7 @@ _CITATION_KEYS = (
     "jurisdiction",
     "instrument",
     "rule_id",
-    "effective_date",
     "quote_excerpt",
-    "mapping",
 )
 
 _ACTION_BY_DECISION = {

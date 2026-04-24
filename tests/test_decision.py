@@ -74,9 +74,9 @@ def test_score_to_decision_thresholds():
 
 
 def test_normalize_citation_drops_incomplete():
-    missing_date = _valid_citation("VARA", "R1")
-    missing_date.pop("effective_date")
-    assert _normalize_citation(missing_date) is None
+    missing_rule_id = _valid_citation("VARA", "R1")
+    missing_rule_id.pop("rule_id")
+    assert _normalize_citation(missing_rule_id) is None
 
     empty_quote = _valid_citation("VARA", "R1")
     empty_quote["quote_excerpt"] = ""
@@ -84,6 +84,7 @@ def test_normalize_citation_drops_incomplete():
 
     cleaned = _normalize_citation(_valid_citation("VARA", "R1"))
     assert isinstance(cleaned, dict)
+    assert set(cleaned.keys()) == {"jurisdiction", "instrument", "rule_id", "quote_excerpt"}
     assert all(isinstance(v, str) and v == v.strip() and v for v in cleaned.values())
 
 

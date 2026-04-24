@@ -69,9 +69,7 @@ Every FLAG or BLOCK decision carries one or more citation objects. Each citation
   "jurisdiction": "FCA",
   "instrument": "Financial Crime Guide (FCG)",
   "rule_id": "FCG 7.2.3",
-  "effective_date": "2024-04-30",
-  "quote_excerpt": "Firms must ensure that their systems and controls are adequate to identify transactions with individuals or entities in jurisdictions subject to UK financial sanctions.",
-  "mapping": "This transaction triggers FCG 7.2.3 because sender_country=IR is a UK-sanctioned jurisdiction under the Russia (Sanctions) (EU Exit) Regulations 2019 and equivalent Iran regimes."
+  "quote_excerpt": "Firms must ensure that their systems and controls are adequate to identify transactions with individuals or entities in jurisdictions subject to UK financial sanctions."
 }
 ```
 

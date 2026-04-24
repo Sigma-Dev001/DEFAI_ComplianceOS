@@ -40,6 +40,16 @@ returns per-regulator decisions with clause-level citations in a single API
 call: sub-second on OFAC SDN hits, 15–25s on full Opus 4.7 reasoning over
 retrieved regulatory context.
 
+## Why now — April 2026
+
+VARA Phase 2 enforcement is live. MiCA's transition window closed in
+December 2025 and EU crypto firms are now fully in scope. The FCA's
+financial promotion regime for cryptoassets has been in force for over
+two years and enforcement actions are accelerating. A fund operating
+UAE ↔ Singapore ↔ UK in 2026 is reconciling three hardening regimes on
+every transfer — and paying a six-figure annual seat fee per
+jurisdiction for tools that score wallets but don't cite rules.
+
 ## What it does
 
 - Per-regulator PASS/FLAG/BLOCK with clause-level citations (VARA, MAS, FCA, FATF)

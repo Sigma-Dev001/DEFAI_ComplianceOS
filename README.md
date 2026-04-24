@@ -79,34 +79,7 @@ This is what a compliance officer would otherwise spend an hour drafting by hand
 
 ## Architecture
 
-```
-  Fintech
-     │
-     ▼  POST /check
-  ┌──────────────────┐
-  │ FastAPI          │
-  └────────┬─────────┘
-           │
-           ▼
-   OFAC SDN screen      (from_address / to_address — bypass Claude on hit)
-           │
-           ▼
-   pgvector retrieval   (top-3 chunks per jurisdiction, cosine similarity)
-           │
-           ▼
-   Claude Opus 4.7      (async SDK, per-regulator JSON reasoning)
-           │
-           ▼
-   decision engine      (per-regulator score, worst-case aggregate,
-                         sanctions override, structured citations)
-           │
-           ├────────────▶  audit log       (Postgres, JSONB request + raw reasoning)
-           │
-           └────────────▶  Telegram alert  (FLAG / BLOCK only)
-           │
-           ▼
-   JSON response contract
-```
+![Architecture](docs/images/architecture.png)
 
 Supported jurisdictions: **VARA, MAS, FCA, FATF**.
 

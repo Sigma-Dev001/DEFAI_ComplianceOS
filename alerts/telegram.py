@@ -2,6 +2,7 @@ import logging
 import os
 
 from telegram import Bot
+from telegram.request import HTTPXRequest
 
 logger = logging.getLogger(__name__)
 
@@ -79,7 +80,8 @@ async def send_alert(
     )
 
     try:
-        bot = Bot(token=token)
+        request = HTTPXRequest(connect_timeout=10.0, read_timeout=10.0)
+        bot = Bot(token=token, request=request)
         async with bot:
             await bot.send_message(chat_id=chat_id, text=message)
     except Exception:

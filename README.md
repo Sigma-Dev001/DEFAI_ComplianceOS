@@ -155,13 +155,22 @@ audit trail.
 
 ## Roadmap
 
-ComplianceOS is the first of three chapters. One product, three expansions, targeting the highest-value unsolved problems at the intersection of finance, blockchain, and AI.
+I'm building ComplianceOS as the first of three chapters. One product, three expansions, targeting the highest-value unsolved problems at the intersection of finance, blockchain, and AI.
 
-**Chapter 1 — The Interoperability Barrier (this repo, PoC).** Cross-border compliance middleware. Pre-transaction decision with regulatory citations in a single call across VARA, MAS, FCA, and FATF. Priced $500–$5K/mo — a fraction of incumbent enterprise compliance tooling. **Next:** MVP with 20–30 beta users.
+**Chapter 1 — The Interoperability Barrier (this repo, PoC).**
+Cross-border compliance middleware. I built a pre-transaction PASS / FLAG / BLOCK decision engine that calls Claude Opus 4.7 with retrieved chunks from the actual VARA, MAS, FCA, and FATF rulebooks — pgvector cosine retrieval, top-3 chunks per jurisdiction. Every decision returns verbatim regulatory citations grounded in the source PDFs, plus a SHA-256 hash of the system prompt and a content hash of the regulatory snapshot, so any decision is reconstructable months later. Priced $500–$5K/mo — a fraction of incumbent enterprise tooling that runs $50K+/year per jurisdiction.
 
-**Chapter 2 — Settlement Asymmetry & Agent Identity (Month 9).** AI agents executing financial transactions have no standard identity or reputation layer. An ERC-8004 + x402 agent identity and compliance attestation module — "KYC for AI agents" — slotted as a premium layer on top of ComplianceOS. Every agent-initiated transaction resolves to a named, accountable actor with a regulatory clause backing the decision.
+**Toward MVP:** 20–30 beta users across Series A–B digital-asset funds and cross-border fintechs in UAE, Singapore, and UK. Webhook integrations for compliance-team workflow tools, MiCA added to the ingestion pipeline, SLA-backed latency tiers. Compliance-officer-in-the-loop surfaces — review queues, citation-defensibility scoring, and SAR-narrative scaffolding seeded directly from any `/trace/{id}` audit row, reusing the same Claude reasoning chain that produced the original decision — are the next product layer.
 
-**Chapter 3 — Enterprise B2B Payment Rails (after P1 + P2 traction).** B2B payments still run on 1970s tech — 30-day invoices, 3-5 day cross-border settlement, 3-5% fees. An agentic treasury engine on x402 + stablecoin rails, built on the compliance and identity layers beneath it. Compliance-by-construction, identity-by-construction, settlement-by-default.
+**Chapter 2 — Settlement Asymmetry & Agent Identity (Month 9 target).**
+Every AI agent that transacts today is anonymous to the regulator. A Claude-powered agent initiating a cross-border transfer on someone's behalf has no verifiable identity, no licensure attribution, no audit-grade record of who authorized it. As agent-initiated commerce scales — and it's scaling fast — this becomes the structural bottleneck for institutional adoption.
+
+I'm extending ComplianceOS into an ERC-8004 + x402 identity layer. Agents register an on-chain identity per ERC-8004, the decentralized agent-registry standard. When an agent calls `/check`, it presents a Verifiable Credential signed by its issuing principal — the firm or individual that licensed it. ComplianceOS verifies the signature, anchors the credential's hash into the audit row, and binds the regulatory clause to a named, accountable actor. The x402 payment-required flow handles on-chain attestation and payment for compliance checks. "KYC for AI agents," shipped as a premium module on top of ComplianceOS, not a standalone product.
+
+**Chapter 3 — Enterprise B2B Payment Rails (after P1 + P2 traction).**
+B2B payments still run on 1970s tech — 30-day invoice cycles, 3–5 day cross-border settlement, 3–5% fees, manual reconciliation. The compliance and identity foundations from Chapters 1 and 2 unlock something the incumbents structurally can't ship: an agentic treasury engine where compliance is checked at decision time, identity is verified at decision time, and settlement happens atomically on stablecoin rails (USDC, USDT, EURC) — same call, same second.
+
+Target buyer: mid-market treasury teams at firms already operating across the UAE ↔ Singapore ↔ UK corridor where crypto-native and traditional finance overlap. AI agents managing treasury allocations, rebalancing across jurisdictions, auto-checking compliance per move, settling in seconds instead of days. Compliance-by-construction. Identity-by-construction. Settlement-by-default.
 
 Beachheads across all three chapters: **UAE, Singapore, UK.** Nigeria is the origin, not the ceiling.
 

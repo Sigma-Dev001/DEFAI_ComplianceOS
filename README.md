@@ -147,3 +147,17 @@ audit trail.
 - **Demo (25%)** — Four live scenarios: PASS, FLAG, BLOCK, OFAC-BLOCK. Telegram alert fires in real time. Full audit trail queryable via `GET /trace/{id}`.
 - **Opus 4.7 use (25%)** — RAG over VARA/MAS/FCA/FATF regulatory PDFs. Per-regulator JSON reasoning with verbatim clause quotes and transaction-field-to-rule-element mapping. Degraded fallback on API failure.
 - **Depth (20%)** — Float confidence calibration with derived label. Two hard overrides in the decision engine: (a) sanctioned-jurisdiction force-BLOCK (any transfer with sender or receiver in the sanctions set is forced to aggregate BLOCK with score floor 85 — same pattern as OFAC SDN wallet screening, at the country level); (b) jurisdiction-aware BLOCK→FLAG downgrade (Claude's per-regulator BLOCK is only honored when score≥85 OR a sanctioned jurisdiction is involved). Every override writes `override_applied=true` and a reason string into the audit row. OFAC SDN wallet pre-screen bypasses Claude entirely on hit. Content-hashed regulatory snapshot ID per decision. Structured audit log with `claude_raw_output` preserved verbatim.
+
+## Roadmap
+
+ComplianceOS is the first of three chapters. One product, three expansions, targeting the highest-value unsolved problems at the intersection of finance, blockchain, and AI.
+
+**Chapter 1 — The Interoperability Barrier (this repo, PoC).** Cross-border compliance middleware. Pre-transaction decision with regulatory citations in a single call across VARA, MAS, FCA, and FATF. Priced $500–$5K/mo — a fraction of incumbent enterprise compliance tooling. **Next:** MVP with 20–30 beta users.
+
+**Chapter 2 — Settlement Asymmetry & Agent Identity (Month 9).** AI agents executing financial transactions have no standard identity or reputation layer. An ERC-8004 + x402 agent identity and compliance attestation module — "KYC for AI agents" — slotted as a premium layer on top of ComplianceOS. Every agent-initiated transaction resolves to a named, accountable actor with a regulatory clause backing the decision.
+
+**Chapter 3 — Enterprise B2B Payment Rails (after P1 + P2 traction).** B2B payments still run on 1970s tech — 30-day invoices, 3-5 day cross-border settlement, 3-5% fees. An agentic treasury engine on x402 + stablecoin rails, built on the compliance and identity layers beneath it. Compliance-by-construction, identity-by-construction, settlement-by-default.
+
+Beachheads across all three chapters: **UAE, Singapore, UK.** Nigeria is the origin, not the ceiling.
+
+> *"Chapter 1 proves you can solve the compliance problem. Chapter 2 proves you can extend that into the agent economy. Chapter 3 is the infrastructure play that makes you a category leader."*

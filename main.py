@@ -1,7 +1,9 @@
+import logging
 from contextlib import asynccontextmanager
 
 from dotenv import load_dotenv
 
+logging.basicConfig(level=logging.INFO, format="%(levelname)s:%(name)s:%(message)s")
 load_dotenv()
 
 from fastapi import Depends, FastAPI
@@ -46,6 +48,7 @@ async def health(db: AsyncSession = Depends(get_db)) -> dict:
     tx_result = await db.execute(select(func.count(Transaction.id)))
     return {
         "status": "ok",
+        "tagline": "Existing tools tell you what to flag. ComplianceOS tells you why.",
         "model": MODEL,
         "regulatory_docs_loaded": docs_result.scalar_one(),
         "transactions_processed": tx_result.scalar_one(),

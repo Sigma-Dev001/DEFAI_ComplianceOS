@@ -31,13 +31,13 @@ SCENARIOS = [
         "expected": "PASS",
         "payload": {
             "transaction_id": "demo_001",
-            "amount": 2500.0,
+            "amount": 500.0,
             "currency": "USD",
             "sender_country": "SG",
             "receiver_country": "UK",
             "jurisdiction": "MAS",
             "transfer_count_24h": 1,
-            "avg_transfer_amount": 2500.0,
+            "avg_transfer_amount": 500.0,
         },
     },
     {

@@ -11,9 +11,7 @@ _CITATION_KEYS = (
     "jurisdiction",
     "instrument",
     "rule_id",
-    "effective_date",
     "quote_excerpt",
-    "mapping",
 )
 
 _ACTION_BY_DECISION = {
@@ -209,7 +207,16 @@ def parse_claude_output(
     if not processed:
         return _parse_failure(transaction_id, processing_ms, reg_snapshot_id)
 
-    if has_block:
+    if sanctions_hit:
+        aggregate_decision = "BLOCK"
+        if max_score < 85:
+            max_score = 85
+        override_applied = True
+        override_reasons.append(
+            f"Aggregate forced to BLOCK — sanctioned jurisdiction on "
+            f"transfer (sender={sender}, receiver={receiver})"
+        )
+    elif has_block:
         aggregate_decision = "BLOCK"
     elif has_flag:
         aggregate_decision = "FLAG"

@@ -1,14 +1,40 @@
 # DEFAI ComplianceOS
 
-> We automate cross-jurisdictional compliance screening for digital asset
-> transactions — so your team doesn't manually reconcile VARA, MAS, and FCA
-> requirements every time value moves between networks.
+> **Existing tools tell you what to flag. ComplianceOS tells you why.**
+>
+> Clause-level citations from VARA, MAS, and FCA on every transaction decision —
+> the exact rule text a compliance officer puts in a regulatory filing.
+
+> [!NOTE]
+> **Status: Proof of concept.** Built in 5 days for the Anthropic Built with Opus 4.7 Hackathon (April 2026). This is Chapter 1 of three — the compliance-reasoning foundation. Not yet a production MVP. The path from PoC → MVP → production is in [Roadmap](#roadmap) below.
+
+**▶ [Watch the 3-minute demo](https://youtu.be/qm0eiA7NC6U)**
 
 ![Python](https://img.shields.io/badge/Python-3.12-blue)
 ![FastAPI](https://img.shields.io/badge/FastAPI-async-green)
 ![Claude](https://img.shields.io/badge/Claude-Opus%204.7-orange)
 ![pgvector](https://img.shields.io/badge/PostgreSQL-pgvector-blue)
 ![License](https://img.shields.io/badge/License-MIT-green)
+
+## Try it
+
+```bash
+curl -X POST http://localhost:8000/check \
+  -H "Content-Type: application/json" \
+  -d '{
+    "transaction_id": "demo_003",
+    "amount": 50000,
+    "currency": "USDT",
+    "sender_country": "IR",
+    "receiver_country": "UK",
+    "jurisdiction": "FCA",
+    "transfer_count_24h": 1
+  }'
+```
+
+Returns a BLOCK decision with per-regulator scores (VARA/MAS/FCA) and
+rule_references populated with verbatim regulatory quotes — see
+The wedge below.
 
 ## Who it's for
 
@@ -18,6 +44,16 @@ screens every transaction against VARA, MAS, and FCA simultaneously and
 returns per-regulator decisions with clause-level citations in a single API
 call: sub-second on OFAC SDN hits, 15–25s on full Opus 4.7 reasoning over
 retrieved regulatory context.
+
+## Why now — April 2026
+
+VARA Phase 2 enforcement is live. MiCA's transition window closed in
+December 2025 and EU crypto firms are now fully in scope. The FCA's
+financial promotion regime for cryptoassets has been in force for over
+two years and enforcement actions are accelerating. A fund operating
+UAE ↔ Singapore ↔ UK in 2026 is reconciling three hardening regimes on
+every transfer — and paying a six-figure annual seat fee per
+jurisdiction for tools that score wallets but don't cite rules.
 
 ## What it does
 
@@ -29,36 +65,24 @@ retrieved regulatory context.
 
 **Latency:** OFAC SDN bypass returns in under a second. Full Opus 4.7 reasoning runs 15–25s including per-jurisdiction retrieval and structured citation generation.
 
+## The wedge: clause-level citations
+
+Every FLAG or BLOCK decision carries one or more citation objects. Each citation names a specific regulatory clause, quotes it verbatim, and maps a transaction field to the element of the rule it satisfies. Example from a Scenario 3 (Iran → UK, $50k USDT) run:
+
+```json
+{
+  "jurisdiction": "FCA",
+  "instrument": "Financial Crime Guide (FCG)",
+  "rule_id": "FCG 7.2.3",
+  "quote_excerpt": "Firms must ensure that their systems and controls are adequate to identify transactions with individuals or entities in jurisdictions subject to UK financial sanctions."
+}
+```
+
+This is what a compliance officer would otherwise spend an hour drafting by hand against the rulebook PDF — and what they'd get fined for getting wrong.
+
 ## Architecture
 
-```
-  Fintech
-     │
-     ▼  POST /check
-  ┌──────────────────┐
-  │ FastAPI          │
-  └────────┬─────────┘
-           │
-           ▼
-   OFAC SDN screen      (from_address / to_address — bypass Claude on hit)
-           │
-           ▼
-   pgvector retrieval   (top-3 chunks per jurisdiction, cosine similarity)
-           │
-           ▼
-   Claude Opus 4.7      (async SDK, per-regulator JSON reasoning)
-           │
-           ▼
-   decision engine      (per-regulator score, worst-case aggregate,
-                         sanctions override, structured citations)
-           │
-           ├────────────▶  audit log       (Postgres, JSONB request + raw reasoning)
-           │
-           └────────────▶  Telegram alert  (FLAG / BLOCK only)
-           │
-           ▼
-   JSON response contract
-```
+![Architecture](docs/images/architecture.png)
 
 Supported jurisdictions: **VARA, MAS, FCA, FATF**.
 
@@ -66,7 +90,7 @@ Supported jurisdictions: **VARA, MAS, FCA, FATF**.
 
 | # | Input | Decision | Score |
 |---|---|---|---|
-| 1 | SG → UK, $2,500 USD, 1 transfer / 24h | **PASS** | low |
+| 1 | SG → UK, $500 USD, 1 transfer / 24h | **PASS** | low |
 | 2 | AE → SG, 7 × $9,800 USD / 24h (structuring) | **FLAG** | mid |
 | 3 | IR → UK, $50,000 USDT (sanctions) | **BLOCK** | high |
 | 4 | US → US, $1,000 USDT, OFAC SDN wallet `149w62rY…StKeq8C` | **BLOCK** | 100 |
@@ -79,7 +103,7 @@ in the `reason` field.
 
 ```bash
 # 1.
-cp .env.example .env    # add ANTHROPIC_API_KEY and TELEGRAM credentials
+cp .env.example .env    # add ANTHROPIC_API_KEY (TELEGRAM_* vars are optional — leave blank to skip alerts)
 
 # 2.
 docker compose up -d
@@ -126,5 +150,23 @@ audit trail.
 
 - **Impact (30%)** — Series A–B digital asset funds operating across UAE/SG/UK pay six-figure annual fees per jurisdiction for siloed compliance tooling. This system returns per-regulator decisions in one call.
 - **Demo (25%)** — Four live scenarios: PASS, FLAG, BLOCK, OFAC-BLOCK. Telegram alert fires in real time. Full audit trail queryable via `GET /trace/{id}`.
-- **Opus 4.7 use (25%)** — RAG over VARA/MAS/FCA/FATF regulatory PDFs. Per-regulator JSON reasoning with verbatim clause quotes and transaction-field-to-rule-element mapping. Degraded fallback on API failure.
-- **Depth (20%)** — Float confidence calibration with derived label. Sanctioned-country override. OFAC SDN pre-screen. Regulatory snapshot hash per decision. Structured audit log with `claude_raw_output` preserved.
+- **Opus 4.7 use (25%)** — RAG over VARA/MAS/FCA/FATF regulatory PDFs. Per-regulator JSON reasoning with verbatim clause quotes from the source regulatory text. Content-hashed prompt + regulatory snapshot for audit-grade reproducibility. Degraded fallback on API failure.
+- **Depth (20%)** — Float confidence calibration with derived label. Two hard overrides in the decision engine: (a) sanctioned-jurisdiction force-BLOCK (any transfer with sender or receiver in the sanctions set is forced to aggregate BLOCK with score floor 85 — same pattern as OFAC SDN wallet screening, at the country level); (b) jurisdiction-aware BLOCK→FLAG downgrade (Claude's per-regulator BLOCK is only honored when score≥85 OR a sanctioned jurisdiction is involved). Every override writes `override_applied=true` and a reason string into the audit row. OFAC SDN wallet pre-screen bypasses Claude entirely on hit. Content-hashed regulatory snapshot ID per decision. Structured audit log with `claude_raw_output` preserved verbatim.
+
+## Roadmap
+
+ComplianceOS is the first of three chapters. One product, three expansions, targeting the highest-value unsolved problems at the intersection of finance, blockchain, and AI.
+
+**Chapter 1 — The Interoperability Barrier (this repo, PoC).** Cross-border compliance middleware. Pre-transaction decision with regulatory citations in a single call across VARA, MAS, FCA, and FATF. Priced $500–$5K/mo — a fraction of incumbent enterprise compliance tooling. **Next:** MVP with 20–30 beta users.
+
+**Chapter 2 — Settlement Asymmetry & Agent Identity (Month 9).** AI agents executing financial transactions have no standard identity or reputation layer. An ERC-8004 + x402 agent identity and compliance attestation module — "KYC for AI agents" — slotted as a premium layer on top of ComplianceOS. Every agent-initiated transaction resolves to a named, accountable actor with a regulatory clause backing the decision.
+
+**Chapter 3 — Enterprise B2B Payment Rails (after P1 + P2 traction).** B2B payments still run on 1970s tech — 30-day invoices, 3-5 day cross-border settlement, 3-5% fees. An agentic treasury engine on x402 + stablecoin rails, built on the compliance and identity layers beneath it. Compliance-by-construction, identity-by-construction, settlement-by-default.
+
+Beachheads across all three chapters: **UAE, Singapore, UK.** Nigeria is the origin, not the ceiling.
+
+> *"Chapter 1 proves you can solve the compliance problem. Chapter 2 proves you can extend that into the agent economy. Chapter 3 is the infrastructure play that makes you a category leader."*
+
+---
+
+Built in 5 days by **Samuel** — Lagos, Nigeria. [Watch the demo](https://youtu.be/qm0eiA7NC6U) · [GitHub](https://github.com/Sigma-Dev001/DEFAI_ComplianceOS)

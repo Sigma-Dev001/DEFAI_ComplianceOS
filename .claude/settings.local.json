@@ -27,7 +27,13 @@
       "Bash(docker compose *)",
       "Bash(PGPASSWORD=devpassword psql *)",
       "Bash(git checkout *)",
-      "Bash(git merge *)"
+      "Bash(git merge *)",
+      "mcp__notion__notion-fetch",
+      "WebFetch(domain:zenithblox.network)",
+      "WebFetch(domain:zenithblox.com)",
+      "WebFetch(domain:www.cointrust.com)",
+      "mcp__notion__notion-create-pages",
+      "mcp__notion__notion-update-page"
     ]
   }
 }

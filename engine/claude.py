@@ -29,28 +29,17 @@ SYSTEM_PROMPT = (
     '  "recommended_action": "string"\n'
     "}\n\n"
     "CITATION REQUIREMENT — every citation must defend the score against a real "
-    "clause. Each <citation> object MUST have all six keys populated:\n"
+    "clause. Each <citation> object MUST have all four keys populated:\n"
     "  {\n"
     '    "jurisdiction": "VARA",\n'
     '    "instrument": "Compliance and Risk Management Rulebook",\n'
     '    "rule_id": "Part II Rule 1.2",\n'
-    '    "effective_date": "2023-02-07",\n'
-    '    "quote_excerpt": "verbatim direct quote from the regulatory clause, 60 words or fewer",\n'
-    '    "mapping": "This transaction triggers [rule_id] because [specific transaction field, e.g. transfer_count_24h=7] satisfies [element of the rule, e.g. \'unusual pattern\']."\n'
+    '    "quote_excerpt": "verbatim direct quote from the regulatory clause, 60 words or fewer"\n'
     "  }\n\n"
-    "- quote_excerpt is a verbatim extract from the regulatory text, 60 words or fewer.\n"
-    "- mapping is ONE sentence that names a specific field from the transaction "
-    "(amount, currency, sender_country, receiver_country, transfer_count_24h, "
-    "avg_transfer_amount, jurisdiction) AND the specific element of the cited "
-    "rule that the field satisfies.\n\n"
+    "- quote_excerpt is a verbatim extract from the regulatory text, 60 words or fewer.\n\n"
     "Narrative language such as \"transaction exhibits structuring behavior\" is "
-    "NOT acceptable in mapping or summary_reason. Every assertion must name a "
+    "NOT acceptable in summary_reason. Every assertion must name a "
     "transaction field AND a rule element.\n\n"
-    "EXAMPLE of acceptable mapping:\n"
-    "  \"FATF R.20 requires that 'financial institutions should report suspicious "
-    "transactions ... regardless of the amount.' This transaction triggers R.20 "
-    "because transfer_count_24h=7 near the USD 10,000 reporting threshold "
-    "satisfies the 'unusual pattern' condition.\"\n\n"
     "confidence MUST be a float between 0.00 and 1.00 representing the model's "
     "certainty in its classification. Do NOT return a label (high/medium/low).\n\n"
     "FATF chunks are provided as supporting context — cite FATF inside a "

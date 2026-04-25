@@ -1,0 +1,18 @@
+flowchart TD
+    Fintech([Fintech client]) -->|POST /check| API[FastAPI /check]
+    API --> OFAC{OFAC SDN screen<br/>from / to address}
+    OFAC -->|wallet hit| FastBlock[Sub-second BLOCK<br/>Claude bypassed]
+    OFAC -->|clean| Retrieval[pgvector retrieval<br/>top-3 chunks per jurisdiction]
+    Retrieval --> Claude[Claude Opus 4.7<br/>per-regulator JSON reasoning<br/>with clause-level citations]
+    Claude --> Decision[Decision engine<br/>per-regulator score<br/>sanctions force-BLOCK<br/>BLOCK→FLAG downgrade<br/>worst-case aggregate]
+    Decision --> Audit[(Postgres audit log<br/>claude_raw_output<br/>system_prompt_hash<br/>reg_snapshot_id)]
+    Decision --> Telegram[Telegram alert<br/>FLAG / BLOCK only<br/>fire-and-forget]
+    Decision --> Response[JSON response<br/>decision, score, confidence<br/>rule_references]
+    FastBlock --> Response
+
+    classDef deterministic fill:#fde68a,stroke:#92400e,color:#000
+    classDef reasoning fill:#bfdbfe,stroke:#1e40af,color:#000
+    classDef storage fill:#e5e7eb,stroke:#374151,color:#000
+    class OFAC,FastBlock deterministic
+    class Claude,Decision reasoning
+    class Audit,Telegram storage

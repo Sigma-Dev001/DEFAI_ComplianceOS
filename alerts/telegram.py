@@ -2,6 +2,7 @@ import logging
 import os
 
 from telegram import Bot
+from telegram.request import HTTPXRequest
 
 logger = logging.getLogger(__name__)
 
@@ -66,9 +67,7 @@ async def send_alert(
     chat_id = os.getenv("TELEGRAM_CHAT_ID")
 
     if not token or not chat_id:
-        logger.warning(
-            "Telegram alert skipped: TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID not set"
-        )
+        logger.info("Telegram not configured — skipping alert for trace %s", trace_id)
         return
 
     message = _format_message(
@@ -81,7 +80,8 @@ async def send_alert(
     )
 
     try:
-        bot = Bot(token=token)
+        request = HTTPXRequest(connect_timeout=10.0, read_timeout=10.0)
+        bot = Bot(token=token, request=request)
         async with bot:
             await bot.send_message(chat_id=chat_id, text=message)
     except Exception:

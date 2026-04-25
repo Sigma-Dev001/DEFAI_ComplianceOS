@@ -5,6 +5,11 @@
 > Clause-level citations from VARA, MAS, and FCA on every transaction decision —
 > the exact rule text a compliance officer puts in a regulatory filing.
 
+> [!NOTE]
+> **Status: Proof of concept.** Built in 5 days for the Anthropic Built with Opus 4.7 Hackathon (April 2026). This is Chapter 1 of three — the compliance-reasoning foundation. Not yet a production MVP. The path from PoC → MVP → production is in [Roadmap](#roadmap) below.
+
+**▶ [Watch the 3-minute demo](https://youtu.be/qm0eiA7NC6U)**
+
 ![Python](https://img.shields.io/badge/Python-3.12-blue)
 ![FastAPI](https://img.shields.io/badge/FastAPI-async-green)
 ![Claude](https://img.shields.io/badge/Claude-Opus%204.7-orange)
@@ -85,7 +90,7 @@ Supported jurisdictions: **VARA, MAS, FCA, FATF**.
 
 | # | Input | Decision | Score |
 |---|---|---|---|
-| 1 | SG → UK, $2,500 USD, 1 transfer / 24h | **PASS** | low |
+| 1 | SG → UK, $500 USD, 1 transfer / 24h | **PASS** | low |
 | 2 | AE → SG, 7 × $9,800 USD / 24h (structuring) | **FLAG** | mid |
 | 3 | IR → UK, $50,000 USDT (sanctions) | **BLOCK** | high |
 | 4 | US → US, $1,000 USDT, OFAC SDN wallet `149w62rY…StKeq8C` | **BLOCK** | 100 |
@@ -145,7 +150,7 @@ audit trail.
 
 - **Impact (30%)** — Series A–B digital asset funds operating across UAE/SG/UK pay six-figure annual fees per jurisdiction for siloed compliance tooling. This system returns per-regulator decisions in one call.
 - **Demo (25%)** — Four live scenarios: PASS, FLAG, BLOCK, OFAC-BLOCK. Telegram alert fires in real time. Full audit trail queryable via `GET /trace/{id}`.
-- **Opus 4.7 use (25%)** — RAG over VARA/MAS/FCA/FATF regulatory PDFs. Per-regulator JSON reasoning with verbatim clause quotes and transaction-field-to-rule-element mapping. Degraded fallback on API failure.
+- **Opus 4.7 use (25%)** — RAG over VARA/MAS/FCA/FATF regulatory PDFs. Per-regulator JSON reasoning with verbatim clause quotes from the source regulatory text. Content-hashed prompt + regulatory snapshot for audit-grade reproducibility. Degraded fallback on API failure.
 - **Depth (20%)** — Float confidence calibration with derived label. Two hard overrides in the decision engine: (a) sanctioned-jurisdiction force-BLOCK (any transfer with sender or receiver in the sanctions set is forced to aggregate BLOCK with score floor 85 — same pattern as OFAC SDN wallet screening, at the country level); (b) jurisdiction-aware BLOCK→FLAG downgrade (Claude's per-regulator BLOCK is only honored when score≥85 OR a sanctioned jurisdiction is involved). Every override writes `override_applied=true` and a reason string into the audit row. OFAC SDN wallet pre-screen bypasses Claude entirely on hit. Content-hashed regulatory snapshot ID per decision. Structured audit log with `claude_raw_output` preserved verbatim.
 
 ## Roadmap
@@ -161,3 +166,7 @@ ComplianceOS is the first of three chapters. One product, three expansions, targ
 Beachheads across all three chapters: **UAE, Singapore, UK.** Nigeria is the origin, not the ceiling.
 
 > *"Chapter 1 proves you can solve the compliance problem. Chapter 2 proves you can extend that into the agent economy. Chapter 3 is the infrastructure play that makes you a category leader."*
+
+---
+
+Built in 5 days by **Samuel** — Lagos, Nigeria. [Watch the demo](https://youtu.be/qm0eiA7NC6U) · [GitHub](https://github.com/Sigma-Dev001/DEFAI_ComplianceOS)

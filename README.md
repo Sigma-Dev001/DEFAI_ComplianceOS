@@ -8,6 +8,9 @@
 > [!NOTE]
 > **Status: Proof of concept.** Built in 5 days for the Anthropic Built with Opus 4.7 Hackathon (April 2026). This is Chapter 1 of three — the compliance-reasoning foundation. Not yet a production MVP. The path from PoC → MVP → production is in [Roadmap](#roadmap) below.
 
+> [!IMPORTANT]
+> **Decision-support tooling. Not legal advice.** ComplianceOS surfaces the regulatory clauses an officer can review and cite — it does not replace a licensed compliance officer or counsel. Human-in-the-loop review is required before any regulatory filing.
+
 **▶ [Watch the 3-minute demo](https://youtu.be/qm0eiA7NC6U)**
 
 ![Python](https://img.shields.io/badge/Python-3.12-blue)

@@ -11,7 +11,7 @@
 > [!IMPORTANT]
 > **Decision-support tooling. Not legal advice.** ComplianceOS surfaces the regulatory clauses an officer can review and cite — it does not replace a licensed compliance officer or counsel. Human-in-the-loop review is required before any regulatory filing.
 
-**▶ [Watch the 3-minute demo](https://youtu.be/qm0eiA7NC6U)**
+**▶ [Watch the demo](https://youtu.be/TZbuB_EqJLA)**
 
 ![Python](https://img.shields.io/badge/Python-3.12-blue)
 ![FastAPI](https://img.shields.io/badge/FastAPI-async-green)
@@ -181,4 +181,4 @@ Beachheads across all three chapters: **UAE, Singapore, UK.** Nigeria is the ori
 
 ---
 
-Built in 5 days by **Samuel** — Lagos, Nigeria. [Watch the demo](https://youtu.be/qm0eiA7NC6U) · [GitHub](https://github.com/Sigma-Dev001/DEFAI_ComplianceOS)
+Built in 5 days by **Samuel Uzoamaka** — Lagos, Nigeria. [Watch the demo](https://youtu.be/TZbuB_EqJLA) · [GitHub](https://github.com/Sigma-Dev001/DEFAI_ComplianceOS)
